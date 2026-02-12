@@ -15,6 +15,8 @@ import {
   Sparkles,
   LogIn,
   UserPlus,
+  BookOpen,
+  ShieldAlert,
 } from "lucide-react";
 
 const Auth = () => {
@@ -57,155 +59,178 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-white p-3 sm:p-4 md:p-6 font-sans antialiased">
-      {/* Animated background decoration */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-200/30 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-200/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-100/20 rounded-full blur-3xl" />
+    <div className="min-h-screen w-full flex bg-white font-sans antialiased overflow-hidden">
+      {/* --- LEFT SIDE: PREMIUM HERO (Hidden on Mobile/Tablet) --- */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-950 items-center justify-center p-20 overflow-hidden">
+        {/* Animated Background Gradients */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] -mr-40 -mt-40 animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px] -ml-20 -mb-20" />
+
+        {/* Decorative Grid Pattern */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+
+        <div className="relative z-10 max-w-xl">
+          <div className="mb-12 inline-flex items-center gap-3 px-4 py-2 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-indigo-400">
+            <Sparkles size={16} />
+            <span className="text-xs font-black uppercase tracking-[0.2em]">Next-Gen Routine Management</span>
+          </div>
+
+          <h2 className="text-6xl xl:text-7xl font-black text-white leading-[1.1] mb-8 tracking-tighter">
+            Master your <span className="text-indigo-500">schedule</span> with AI precision.
+          </h2>
+
+          <p className="text-xl text-slate-400 font-medium leading-relaxed mb-12 max-w-lg">
+            Join thousands of students optimizing their daily academic life with real-time sync and intelligent timeline management.
+          </p>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-sm">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-indigo-600/20">
+                <LayoutDashboard size={24} />
+              </div>
+              <h4 className="text-white font-black mb-2 text-lg">Smart Dashboard</h4>
+              <p className="text-sm text-slate-500 font-medium">Visualized timeline of your entire day at a glance.</p>
+            </div>
+            <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-sm">
+              <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-emerald-500/20">
+                <Sparkles size={24} />
+              </div>
+              <h4 className="text-white font-black mb-2 text-lg">Real-time Sync</h4>
+              <p className="text-sm text-slate-500 font-medium">Instantly access your routine across all your devices.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Floating Book Decoration */}
+        <BookOpen
+          size={300}
+          className="absolute -bottom-20 -right-20 text-white/5 rotate-12 pointer-events-none"
+        />
       </div>
 
-      {/* Main card — fully responsive, perfect on all screens */}
-      <div className="relative w-full max-w-[440px] lg:max-w-md bg-white/90 backdrop-blur-xl rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl border border-white/50 animate-in fade-in zoom-in-95 duration-500">
-        {/* Gradient accent line */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-full" />
-
-        {/* Header with refined spacing */}
-        <div className="flex flex-col items-center mb-7 sm:mb-8 md:mb-10">
-          <div className="relative mb-4 sm:mb-5">
-            <div className="absolute inset-0 bg-indigo-600/20 blur-2xl rounded-full" />
-            <div className="relative p-3.5 sm:p-4 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl sm:rounded-2xl text-white shadow-lg shadow-indigo-600/25">
-              <LayoutDashboard size={28} className="sm:w-8 sm:h-8" />
-            </div>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">
-            Student{" "}
-            <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-xl -rotate-1 inline-block">
-              Hub
-            </span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            {isLogin
-              ? "Welcome back! Sign in to continue"
-              : "Create your account"}
-          </p>
+      {/* --- RIGHT SIDE: LOGIN FORM --- */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative bg-[#F8FAFC]">
+        {/* Mobile Background Decoration */}
+        <div className="lg:hidden absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-100/50 rounded-full blur-3xl -mr-20 -mt-20" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-100/30 rounded-full blur-3xl -ml-20 -mb-20" />
         </div>
 
-        {/* Form with enhanced inputs */}
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-          {!isLogin && (
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-              <div className="relative">
-                <User
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors"
-                  size={18}
-                  strokeWidth={1.8}
-                />
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3.5 sm:py-4 bg-slate-50/80 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-sm sm:text-base placeholder:text-slate-400"
-                  required
-                />
+        <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Top Brand Logo (Mobile specific) */}
+          <div className="flex flex-col items-center mb-10 text-center">
+            <div className="p-4 bg-slate-950 rounded-[1.8rem] text-white shadow-2xl mb-6 ring-4 ring-white">
+              <LayoutDashboard size={32} />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tighter mb-2">
+              Student<span className="text-indigo-600">Hub</span>
+            </h1>
+            <p className="text-slate-500 font-bold text-sm uppercase tracking-widest bg-slate-100 px-4 py-1.5 rounded-full">
+              {isLogin ? "Sign in to Dashboard" : "Join the Community"}
+            </p>
+          </div>
+
+          {/* Form Container */}
+          <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Full Name</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      placeholder="e.g. Suman Chakraborty"
+                      value={name}
+                      autoComplete="name"
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-300"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Your Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    autoComplete="email"
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-300"
+                    required
+                  />
+                </div>
               </div>
-            </div>
-          )}
 
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-            <div className="relative">
-              <Mail
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors"
-                size={18}
-                strokeWidth={1.8}
-              />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 sm:py-4 bg-slate-50/80 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-sm sm:text-base placeholder:text-slate-400"
-                required
-              />
-            </div>
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Secure Password</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-300"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-            <div className="relative">
-              <Lock
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors"
-                size={18}
-                strokeWidth={1.8}
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 sm:py-4 bg-slate-50/80 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-sm sm:text-base placeholder:text-slate-400"
-                required
-              />
-            </div>
-          </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 bg-slate-950 text-white rounded-[1.5rem] font-black text-lg shadow-xl shadow-slate-950/20 hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3 mt-4"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin" size={24} />
+                ) : (
+                  <>
+                    {isLogin ? <LogIn size={22} /> : <UserPlus size={22} />}
+                    <span>{isLogin ? "Enter Dashboard" : "Register Now"}</span>
+                  </>
+                )}
+              </button>
+            </form>
 
-          {/* CTA button with icon */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="relative w-full mt-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-600/30 hover:shadow-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 text-sm sm:text-base"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : isLogin ? (
-              <>
-                <LogIn size={18} strokeWidth={2.2} />
-                <span>Sign in</span>
-              </>
-            ) : (
-              <>
-                <UserPlus size={18} strokeWidth={2.2} />
-                <span>Create account</span>
-              </>
+            {error && (
+              <div className="mt-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in-95">
+                <ShieldAlert className="text-rose-500 shrink-0" size={20} />
+                <p className="text-rose-600 text-xs font-black uppercase tracking-tight leading-tight">{error}</p>
+              </div>
             )}
-          </button>
-        </form>
-
-        {/* Error message with animation */}
-        {error && (
-          <div className="mt-5 p-3.5 sm:p-4 bg-red-50/90 backdrop-blur-sm text-red-600 text-xs sm:text-sm font-medium rounded-xl border border-red-200/80 animate-in slide-in-from-top-2 fade-in">
-            <span className="block truncate">{error}</span>
           </div>
-        )}
 
-        {/* Toggle between login/register */}
-        <div className="mt-7 sm:mt-8 text-center">
-          <p className="text-sm text-slate-500">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}
-          </p>
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(""); // Clear error on toggle
-            }}
-            className="mt-2 text-sm sm:text-base font-bold text-indigo-600 hover:text-indigo-700 transition-colors relative group"
-          >
-            {isLogin ? "Create free account" : "Sign in"}
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-600 group-hover:w-full transition-all duration-300" />
-          </button>
-        </div>
+          {/* Footer Toggle */}
+          <div className="mt-10 text-center">
+            <p className="text-slate-400 font-bold mb-3">{isLogin ? "New to the system?" : "Already found your hub?"}</p>
+            <button
+              onClick={() => { setIsLogin(!isLogin); setError(""); }}
+              className="px-8 py-3 bg-white border border-slate-200 rounded-full font-black text-slate-900 hover:bg-slate-50 hover:border-indigo-200 transition-all active:scale-95 shadow-sm"
+            >
+              {isLogin ? "Create Free Account" : "Back to Login"}
+            </button>
+          </div>
 
-        {/* Decorative elements */}
-        <div className="flex items-center justify-center gap-1.5 mt-8 text-slate-400">
-          <Sparkles size={12} />
-          <span className="text-[10px] sm:text-xs font-medium">
-            Secure • Real-time sync
-          </span>
-          <Sparkles size={12} />
+          <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col items-center gap-4">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-center">
+              <span className="text-indigo-600">a SumanOnline Website</span><br />
+              <span className="font-semibold">Secured by SVUnite Infrastructure</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -77,14 +77,14 @@ const Uploader = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-2xl mx-auto w-full relative overflow-hidden">
+    <div className="p-6 md:p-10 w-full relative">
       {/* Header section */}
-      <div className="text-center mb-8">
-        <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-          Upload Routine
+      <div className="text-center mb-6">
+        <h2 className="text-2xl md:text-3xl font-black text-slate-950 tracking-tight leading-tight">
+          Sync <span className="text-indigo-600">Schedule</span>
         </h2>
-        <p className="text-slate-500 font-medium mt-2">
-          Upload an image of your class schedule to scan it.
+        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 opacity-60">
+          Intelligent AI Extraction
         </p>
       </div>
 
@@ -148,11 +148,10 @@ const Uploader = ({ onUploadSuccess }) => {
       <button
         onClick={handleUploadAndParse}
         disabled={loading || !image}
-        className={`w-full font-black text-lg py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all duration-300 ${
-          loading || !image
-            ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-            : "bg-slate-900 text-white hover:shadow-2xl hover:bg-indigo-600 active:scale-[0.98]"
-        }`}
+        className={`w-full font-black text-lg py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all duration-300 ${loading || !image
+          ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+          : "bg-slate-900 text-white hover:shadow-2xl hover:bg-indigo-600 active:scale-[0.98]"
+          }`}
       >
         {loading ? (
           <>

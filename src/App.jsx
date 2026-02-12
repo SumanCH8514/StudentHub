@@ -20,7 +20,7 @@ function App() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="text-indigo-600 font-black animate-pulse tracking-tighter text-xl">
-          STUDENT HUB...
+          Loading...
         </div>
       </div>
     );
