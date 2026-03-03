@@ -4,7 +4,13 @@ import { db, auth } from "../firebaseConfig";
 import { GoogleGenAI } from "@google/genai";
 import { v4 as uuidv4 } from "uuid";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_KEYS = [
+  import.meta.env.VITE_GEMINI_API_KEY_1,
+  import.meta.env.VITE_GEMINI_API_KEY_2,
+  import.meta.env.VITE_GEMINI_API_KEY_3,
+  import.meta.env.VITE_GEMINI_API_KEY_4,
+  import.meta.env.VITE_GEMINI_API_KEY_5,
+];
 
 const Uploader = ({ onUploadSuccess }) => {
   const [image, setImage] = useState(null);
@@ -19,7 +25,20 @@ const Uploader = ({ onUploadSuccess }) => {
     setError("");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // Fetch system settings to determine which Gemini Key to use globally
+      const systemDoc = await getDoc(doc(db, "settings", "system"));
+      let activeKeyIndex = 0; // Default to Key 1
+      if (systemDoc.exists() && systemDoc.data().activeGeminiKeyId !== undefined) {
+        // The db stores 1, 2, 3 so convert to 0-based array index:
+        activeKeyIndex = Math.max(0, Math.min(4, parseInt(systemDoc.data().activeGeminiKeyId) - 1));
+      }
+
+      const activeGeminiKey = GEMINI_KEYS[activeKeyIndex];
+      if (!activeGeminiKey) {
+        throw new Error("Active Gemini API Key is missing or invalid in server configuration.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: activeGeminiKey });
       const reader = new FileReader();
 
       const base64Data = await new Promise((resolve) => {

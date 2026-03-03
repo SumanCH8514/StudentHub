@@ -1,11 +1,17 @@
 import React, { useState } from "react";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { v4 as uuidv4 } from "uuid";
-import { UploadCloud, FileImage, X, Loader2, AlertCircle } from "lucide-react"; // Make sure to import these!
+import { UploadCloud, FileImage, FileText, X, Loader2, AlertCircle } from "lucide-react"; // Added FileText
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_KEYS = [
+  import.meta.env.VITE_GEMINI_API_KEY_1,
+  import.meta.env.VITE_GEMINI_API_KEY_2,
+  import.meta.env.VITE_GEMINI_API_KEY_3,
+  import.meta.env.VITE_GEMINI_API_KEY_4,
+  import.meta.env.VITE_GEMINI_API_KEY_5,
+];
 
 const Uploader = ({ onUploadSuccess }) => {
   const [image, setImage] = useState(null);
@@ -20,7 +26,20 @@ const Uploader = ({ onUploadSuccess }) => {
     setError("");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // Fetch system settings to determine which Gemini Key to use globally
+      const systemDoc = await getDoc(doc(db, "settings", "system"));
+      let activeKeyIndex = 0; // Default to Key 1
+      if (systemDoc.exists() && systemDoc.data().activeGeminiKeyId !== undefined) {
+        // The db stores 1, 2, 3 so convert to 0-based array index:
+        activeKeyIndex = Math.max(0, Math.min(4, parseInt(systemDoc.data().activeGeminiKeyId) - 1));
+      }
+
+      const activeGeminiKey = GEMINI_KEYS[activeKeyIndex];
+      if (!activeGeminiKey) {
+        throw new Error("Active Gemini API Key is missing or invalid in server configuration.");
+      }
+
+      const genAI = new GoogleGenerativeAI(activeGeminiKey);
       const reader = new FileReader();
 
       const base64Data = await new Promise((resolve) => {
@@ -28,49 +47,76 @@ const Uploader = ({ onUploadSuccess }) => {
         reader.readAsDataURL(image);
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      // Fetch user profile to get university, stream, semester, section
+      const userProfileDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+      if (!userProfileDoc.exists()) {
+        throw new Error("Please update your profile in Settings before syncing routines.");
+      }
+      const profileData = userProfileDoc.data();
+      const { university, stream, semester, section } = profileData;
+
+      if (!university || !stream || !semester || !section) {
+        throw new Error("Incomplete profile. Please update University, Stream, Semester, and Section in Settings.");
+      }
+
+      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
+      const response = await model.generateContent({
         contents: [
           {
             role: "user",
             parts: [
               {
-                text: "Extract routine: JSON array of objects {day, subject, teacher, time}.",
+                text: "Extract routine: JSON array of objects {day, subject, teacher, time}. Return ONLY the JSON array, no markdown formatting or extra text.",
               },
               { inlineData: { data: base64Data, mimeType: image.type } },
             ],
           },
         ],
-        config: { responseMimeType: "application/json" },
       });
 
-      const schedule = JSON.parse(response.text);
+      const responseData = await response.response;
+      let text = responseData.text();
+
+      if (!text) {
+        throw new Error("AI returned an empty response. Please try a clearer image.");
+      }
+
+      // Clean up markdown formatting if present
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const schedule = JSON.parse(text);
 
       if (Array.isArray(schedule)) {
-        for (const item of schedule) {
-          // 🔥 SECURITY FIX APPLIED: Saving to the secure user subcollection
-          const userDocRef = doc(
-            db,
-            "users",
-            auth.currentUser.uid,
-            "user_classes",
-            uuidv4(),
-          );
+        const batch = writeBatch(db);
+        const sharedRoutinesRef = collection(db, "shared_routines");
 
-          await setDoc(userDocRef, {
+        for (const item of schedule) {
+          const routineDocRef = doc(sharedRoutinesRef, uuidv4());
+          batch.set(routineDocRef, {
             ...item,
             userId: auth.currentUser.uid,
+            university,
+            stream,
+            semester,
+            section,
             createdAt: new Date().toISOString(),
           });
         }
+        await batch.commit();
       } else {
         throw new Error("AI did not return a valid schedule format.");
       }
-
       if (onUploadSuccess) onUploadSuccess();
     } catch (e) {
-      console.error("Upload error:", e);
-      setError(e.message || "Failed to parse and save the routine.");
+      console.error("Upload error details:", e);
+      let errorMsg = "Failed to parse and save the routine.";
+      if (e.message?.includes("400")) {
+        errorMsg = "AI could not process this image. Is it too blurry or too small?";
+      } else if (e.message) {
+        errorMsg = e.message;
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -101,11 +147,11 @@ const Uploader = ({ onUploadSuccess }) => {
             Click to browse
           </span>
           <span className="text-slate-400 font-medium mt-2 text-center">
-            Supports JPG, PNG, WEBP
+            Supports JPG, PNG, WEBP, PDF
           </span>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             onChange={(e) => setImage(e.target.files[0])}
             className="hidden" // Hides the ugly default input
           />
@@ -115,7 +161,11 @@ const Uploader = ({ onUploadSuccess }) => {
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-4 md:p-6 flex items-center justify-between mb-8 animate-in fade-in zoom-in-95 duration-300">
           <div className="flex items-center gap-4 overflow-hidden">
             <div className="bg-white p-4 rounded-2xl shadow-sm shrink-0">
-              <FileImage size={28} className="text-indigo-600" />
+              {image.type === "application/pdf" ? (
+                <FileText size={28} className="text-rose-500" />
+              ) : (
+                <FileImage size={28} className="text-indigo-600" />
+              )}
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
               <span className="font-bold text-slate-800 text-lg truncate">

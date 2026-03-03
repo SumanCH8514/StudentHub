@@ -4,47 +4,97 @@ import {
   query,
   onSnapshot,
   doc,
+  getDoc,
   deleteDoc,
   getDocs,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db, auth } from "../firebaseConfig";
+import { signOut } from "firebase/auth";
 import {
-  Users,
-  ShieldAlert,
-  ArrowLeft,
-  Database,
-  Search,
-  UserMinus,
-  Loader2,
-  LayoutDashboard,
-  Mail,
-  MoreVertical,
-  Activity,
-  AlertTriangle,
+  CalendarDays,
+  ClipboardList,
+  Upload,
+  Trash2,
+  Activity
 } from "lucide-react";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import Footer from "./Footer.jsx";
 
-// Utility for cleaner conditional classes
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import AdminLayout from "./admin/AdminLayout.jsx";
+import AdminDashboardHome from "./admin/AdminDashboardHome.jsx";
+import AdminStudentDetails from "./admin/AdminStudentDetails.jsx";
+import AdminResults from "./admin/AdminResults.jsx";
+import AdminSettings from "./admin/AdminSettings.jsx";
+import AdminProfile from "./admin/AdminProfile.jsx";
+import AdminSystemStatus from "./admin/AdminSystemStatus.jsx";
+import AdminUpdates from "./admin/AdminUpdates.jsx";
+import AdminHolidaysManager from "./admin/AdminHolidaysManager.jsx";
+import { useNavigate } from "react-router-dom";
 
-const AdminPanel = ({ onBack }) => {
+const AdminPanel = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [classesCount, setClassesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [userPhoto, setUserPhoto] = useState(null);
+  const [adminName, setAdminName] = useState("Admin User");
   const [isWiping, setIsWiping] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
+    // Fetch Users
     const q = query(collection(db, "users"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeUsers = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    // Fetch Classes count
+    const fetchClasses = async () => {
+      try {
+        const classesSnapshot = await getDocs(collection(db, "shared_routines"));
+        setClassesCount(classesSnapshot.size);
+      } catch (err) {
+        console.error("Failed to fetch classes count:", err);
+      }
+    };
+    fetchClasses();
+
+    // Fetch Admin Data (Photo & Name)
+    const fetchAdminData = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      setAdminName(currentUser.displayName || "Admin User");
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          if (data.photoBase64) {
+            setUserPhoto(data.photoBase64);
+          }
+          if (data.fullName || data.name) {
+            setAdminName(data.fullName || data.name);
+          }
+          if (data.themePreference) {
+            const isDark =
+              data.themePreference === "dark" ||
+              (data.themePreference === "system" &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches);
+            if (isDark) {
+              document.documentElement.classList.add("dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin data:", err);
+      }
+    };
+    fetchAdminData();
+
+    return () => unsubscribeUsers();
   }, []);
 
   const deleteUser = async (userId) => {
@@ -66,214 +116,184 @@ const AdminPanel = ({ onBack }) => {
       return;
     setIsWiping(true);
     try {
-      const snapshot = await getDocs(collection(db, "classes"));
+      const snapshot = await getDocs(collection(db, "shared_routines"));
       const batch = writeBatch(db);
       snapshot.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
       alert("Database wiped successfully.");
+      setClassesCount(0);
     } catch (e) {
       alert(e.message);
     }
     setIsWiping(false);
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const currentUser = auth.currentUser;
+  const userEmail = currentUser?.email || "";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 overflow-x-hidden selection:bg-indigo-100 selection:text-indigo-700">
-      {/* --- PREMIUM HEADER --- */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 sm:px-12 sm:py-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="group flex items-center gap-3 text-slate-500 hover:text-slate-900 font-bold transition-all active:scale-95"
-          >
-            <div className="p-2 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">
-              <ArrowLeft size={18} />
-            </div>
-            <span className="hidden sm:inline">Dashboard</span>
-          </button>
+    <AdminLayout
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      userName={adminName}
+      userEmail={userEmail}
+      userPhoto={userPhoto}
+      onLogout={() => signOut(auth)}
+      onBack={() => navigate("/")}
+    >
+      {activeTab === "dashboard" && (
+        <AdminDashboardHome
+          userName={adminName}
+          usersCount={users.length}
+          classesCount={classesCount}
+        />
+      )}
 
-          <div className="flex items-center gap-3 bg-rose-50 px-4 py-2 rounded-2xl border border-rose-100 shadow-sm">
-            <ShieldAlert size={16} className="text-rose-600" />
-            <span className="text-xs font-black uppercase tracking-widest text-rose-700">Admin Console</span>
+      {activeTab === "students" && (
+        <AdminStudentDetails
+          users={users}
+          loading={loading}
+          deleteUser={deleteUser}
+        />
+      )}
+
+      {activeTab === "results" && (
+        <AdminResults />
+      )}
+
+      {activeTab === "settings" && (
+        <AdminSettings
+          isWiping={isWiping}
+          wipeGlobalClasses={wipeGlobalClasses}
+        />
+      )}
+
+      {activeTab === "profile" && (
+        <AdminProfile
+          userName={adminName}
+          userEmail={userEmail}
+        />
+      )}
+
+      {activeTab === "system-status" && (
+        <AdminSystemStatus />
+      )}
+
+      {activeTab === "updates" && (
+        <AdminUpdates />
+      )}
+
+      {activeTab === "upload-holidays" && (
+        <AdminHolidaysManager />
+      )}
+
+      {activeTab === "upload-routine" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm text-center">
+            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ClipboardList size={32} className="text-blue-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Class Routine Manager</h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
+              Publish or update global class routines. This will overwrite existing shared routines for the selected stream.
+            </p>
+            <button className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all mx-auto shadow-lg shadow-blue-600/20 active:scale-95">
+              <Upload size={18} />
+              Upload New Routine
+            </button>
           </div>
         </div>
-      </header>
+      )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10 sm:py-16 animate-in slide-in-from-bottom-6 fade-in duration-700">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-
-          {/* STATS - Left Sidebar Top Area */}
-          <div className="xl:col-span-3 order-1 xl:order-1">
-            {/* Minimal Stats Card */}
-            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-6 opacity-10 text-indigo-600 group-hover:scale-110 transition-transform">
-                <Users size={60} />
-              </div>
-              <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] mb-3 relative z-10">
-                Total Hub Members
-              </p>
-              <div className="flex items-baseline gap-2 relative z-10">
-                <h3 className="text-5xl font-black text-slate-950 tracking-tighter">
-                  {users.length}
-                </h3>
-              </div>
-              <div className="mt-8 flex items-center gap-3 relative z-10">
-                <div className="flex -space-x-2">
-                  {users.slice(0, 4).map((u, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-black uppercase text-indigo-600 shadow-sm">
-                      {u.name?.charAt(0)}
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs font-bold text-slate-400">Hub Active</p>
-              </div>
+      {/* ── DATABASE: Global System Reset ── */}
+      {activeTab === "db-reset" && (
+        <div className="space-y-6">
+          <div className="bg-red-50 dark:bg-rose-900/10 border border-red-200 dark:border-rose-900/30 rounded-3xl p-8 xl:p-12 text-center max-w-4xl mx-auto shadow-sm">
+            <div className="w-20 h-20 bg-red-100 dark:bg-rose-900/30 rounded-full flex flex-col items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white dark:ring-slate-800">
+              <Activity size={36} className="text-red-500" />
             </div>
-          </div>
+            <h2 className="text-3xl font-black text-red-600 dark:text-rose-500 mb-3 tracking-tight">GLOBAL SYSTEM RESET</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8 font-medium leading-relaxed">
+              WARNING: This will completely wipe all critical system data, restoring the platform to a blank slate. This action <span className="text-red-600 font-bold underline">cannot be undone</span>.
+            </p>
 
-          {/* USER MANAGEMENT - Main Area / Middle in Mobile */}
-          <div className="xl:col-span-9 xl:row-span-2 order-2 xl:order-2 space-y-8">
-            {/* Controls Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-4">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-black text-slate-950 tracking-tight">User Directory</h2>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Active Hub Registry</p>
-                </div>
-              </div>
-              <div className="relative w-full md:w-[450px] group">
-                <Search
-                  className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  placeholder="Filter by name or identity..."
-                  className="w-full pl-16 pr-8 py-5 bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/20 focus:shadow-indigo-500/10 focus:border-indigo-200 outline-none transition-all font-bold text-sm tracking-tight placeholder:text-slate-300"
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 text-left max-w-lg mx-auto mb-8 border border-red-100 dark:border-slate-700 shadow-sm">
+              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3">Items deleted during reset:</h4>
+              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400 font-medium list-disc pl-5">
+                <li>All User Profiles & Data</li>
+                <li>All Uploaded Class Routines</li>
+                <li>Global Holiday Calendar</li>
+                <li>System Logs & Analytics</li>
+              </ul>
             </div>
 
-            {/* Directory List */}
-            <div className="bg-white/50 rounded-[2.5rem] p-2 border border-slate-100/50">
-              <div className="grid grid-cols-1 gap-1">
-                {loading ? (
-                  <div className="py-24 flex flex-col items-center gap-4 bg-white rounded-[2.2rem]">
-                    <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-                    <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em]">Authorized Access Only</p>
-                  </div>
-                ) : filteredUsers.length === 0 ? (
-                  <div className="py-24 text-center bg-white rounded-[2.2rem]">
-                    <Search className="mx-auto text-slate-100 mb-6" size={60} />
-                    <p className="text-slate-400 font-black text-sm uppercase tracking-widest">No Matches Located</p>
-                  </div>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="group flex flex-row items-center justify-between p-3 sm:p-6 sm:px-10 bg-white border border-slate-50 rounded-2xl sm:rounded-[2rem] hover:border-indigo-100 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-300 gap-3"
-                    >
-                      <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
-                        <div className={cn(
-                          "w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-black text-sm sm:text-lg shadow-xl shrink-0 transition-transform group-hover:scale-105 group-hover:rotate-2",
-                          user.role === "admin" ? "bg-slate-950 border border-slate-800" : "bg-indigo-600 ring-4 ring-indigo-50"
-                        )}>
-                          {user.name?.charAt(0) || <User size={20} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-black text-slate-900 truncate tracking-tight text-sm sm:text-lg">
-                              {user.name || "Hub Member"}
-                            </h4>
-                            <span
-                              className={cn(
-                                "text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border leading-none shadow-sm",
-                                user.role === "admin"
-                                  ? "bg-rose-50 text-rose-600 border-rose-100"
-                                  : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                              )}
-                            >
-                              {user.role}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-400 mt-0.5 sm:mt-1">
-                            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                              <Mail size={12} className="opacity-40 shrink-0 sm:w-3.5 sm:h-3.5" />
-                              <p className="text-[10px] sm:text-xs font-bold truncate tracking-tight opacity-70">
-                                {user.email}
-                              </p>
-                            </div>
-                            <span className="hidden sm:inline w-1 h-1 bg-slate-200 rounded-full" />
-                            <p className="hidden md:block text-[9px] font-black uppercase tracking-widest opacity-40">
-                              ID: {user.id.slice(0, 8)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end shrink-0">
-                        <button
-                          onClick={() => deleteUser(user.id)}
-                          disabled={user.role === "admin"}
-                          className="flex items-center gap-2 p-3 sm:px-6 sm:py-4 text-slate-400 hover:text-white hover:bg-rose-500 rounded-xl sm:rounded-2xl transition-all disabled:opacity-0 active:scale-95 group/btn border border-transparent hover:border-rose-400 hover:shadow-xl hover:shadow-rose-500/20"
-                          title="Revoke Access"
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden md:group-hover/btn:block">Terminate Account</span>
-                          <UserMinus size={16} className="sm:w-[18px]" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* CRITICAL ACTIONS - Mobile Bottom / Sidebar Bottom */}
-          <div className="xl:col-span-3 order-3 xl:order-3">
-            {/* Refined Danger Card */}
-            <div className="bg-slate-950 rounded-[2.5rem] p-8 sm:p-10 text-white shadow-2xl shadow-slate-300 relative overflow-hidden group">
-              {/* Glossy overlay effect */}
-              <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-rose-500/10 to-transparent pointer-events-none" />
-
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-rose-500/20 text-rose-500 rounded-2xl border border-rose-500/10">
-                    <AlertTriangle size={20} />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-400">Critical Control</span>
-                </div>
-                <h4 className="text-2xl font-black tracking-tight leading-tight">Global System Reset</h4>
-                <p className="text-slate-400 text-xs mt-4 font-bold leading-relaxed uppercase tracking-widest opacity-70">
-                  Wipe all routine data across the entire platform. This action is final.
-                </p>
-                <button
-                  onClick={wipeGlobalClasses}
-                  disabled={isWiping}
-                  className="w-full mt-8 py-5 bg-white text-slate-950 hover:bg-rose-600 hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-white/5"
-                >
-                  {isWiping ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="animate-spin" size={14} />
-                      <span>Wiping Hub...</span>
-                    </div>
-                  ) : "Initialize Wipe"}
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={() => alert("Global System Reset initiated... (Not fully hooked up yet)")}
+              className="flex flex-col items-center gap-1.5 px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg transition-all mx-auto shadow-xl shadow-red-500/20 active:scale-95 group w-full sm:w-auto"
+            >
+              <span>CONFIRM SYSTEM RESET</span>
+              <span className="text-xs font-medium text-red-200 uppercase tracking-widest">Requires Re-Authentication</span>
+            </button>
           </div>
         </div>
-      </main>
+      )}
 
-      <Footer />
-    </div>
+      {/* ── DATABASE: Delete Holiday List ── */}
+      {activeTab === "db-del-holidays" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 xl:p-12 text-center max-w-2xl mx-auto border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <CalendarDays size={32} className="text-rose-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Wipe Holiday Calendar</h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
+              This action will permanently delete all parsed holiday events from the global database. Students will see an empty calendar until a new list is uploaded.
+            </p>
+            <button
+              onClick={async () => {
+                if (window.confirm("Are you absolutely sure you want to delete the entire Holiday List?")) {
+                  try {
+                    const snapshot = await getDocs(collection(db, "holidays"));
+                    const batch = writeBatch(db);
+                    snapshot.docs.forEach((d) => batch.delete(d.ref));
+                    await batch.commit();
+                    alert("Holiday list deleted.");
+                  } catch (err) {
+                    alert("Error deleting holidays: " + err.message);
+                  }
+                }
+              }}
+              className="flex items-center gap-2 px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold transition-all mx-auto shadow-md shadow-rose-600/20 active:scale-95"
+            >
+              <Trash2 size={18} />
+              Delete All Holidays
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── DATABASE: Delete Classes ── */}
+      {activeTab === "db-del-classes" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 xl:p-12 text-center max-w-2xl mx-auto border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <ClipboardList size={32} className="text-rose-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Wipe Synced Classes</h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
+              This action will permanently delete all shared class routines across all universities and streams. Use this only at the end of an academic semester.
+            </p>
+            <button
+              onClick={wipeGlobalClasses}
+              disabled={isWiping}
+              className="flex items-center gap-2 px-8 py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all mx-auto shadow-md shadow-rose-600/20 active:scale-95"
+            >
+              {isWiping ? "Deleting..." : <><Trash2 size={18} /> Delete All Classes</>}
+            </button>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
   );
 };
 
