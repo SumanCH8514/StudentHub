@@ -1,16 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+}
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Outfit', sans-serif;
 }
 
 a {
@@ -39,10 +45,6 @@ body {
   /* Match dashboard bg to avoid dark gaps */
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
 
 button {
   cursor: pointer;
@@ -122,11 +124,34 @@ button {
       transform: translateY(-10px);
       opacity: 0;
     }
+
     to {
       transform: translateY(0);
       opacity: 1;
     }
   }
+
+  @keyframes mesh {
+    0% {
+      transform: scale(1) translate(0, 0);
+    }
+
+    33% {
+      transform: scale(1.2) translate(10%, -5%);
+    }
+
+    66% {
+      transform: scale(0.8) translate(-5%, 10%);
+    }
+
+    100% {
+      transform: scale(1) translate(0, 0);
+    }
+  }
+}
+
+.animate-mesh {
+  animation: mesh 20s ease-in-out infinite;
 }
 
 /* Animation Utilities */
@@ -138,6 +163,7 @@ button {
 @utility scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+
   &::-webkit-scrollbar {
     display: none;
   }

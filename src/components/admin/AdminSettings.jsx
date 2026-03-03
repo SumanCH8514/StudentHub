@@ -17,7 +17,15 @@ function cn(...inputs) {
     return twMerge(clsx(inputs));
 }
 
-const AdminSettings = ({ isWiping, wipeGlobalClasses }) => {
+const AdminSettings = ({ isWiping, wipeGlobalClasses, settings, updateSetting }) => {
+    const {
+        allowPublicRegistration,
+        automatedScheduleSync,
+        maintenanceMode,
+        geminiAssistantEnabled,
+        newUserAlerts
+    } = settings;
+
     return (
         <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
 
@@ -50,7 +58,9 @@ const AdminSettings = ({ isWiping, wipeGlobalClasses }) => {
                                     <h4 className="font-semibold text-slate-800 text-sm">Allow Public Registration</h4>
                                     <p className="text-slate-500 text-xs mt-1">New students can create accounts without invites</p>
                                 </div>
-                                <ToggleRight size={36} className="text-emerald-500 shrink-0 cursor-pointer" />
+                                <div onClick={() => updateSetting('allowPublicRegistration', !allowPublicRegistration)} className="cursor-pointer">
+                                    {allowPublicRegistration ? <ToggleRight size={36} className="text-emerald-500 shrink-0" /> : <ToggleLeft size={36} className="text-slate-300 shrink-0" />}
+                                </div>
                             </div>
                             <hr className="border-slate-100" />
 
@@ -59,7 +69,9 @@ const AdminSettings = ({ isWiping, wipeGlobalClasses }) => {
                                     <h4 className="font-semibold text-slate-800 text-sm">Automated Schedule Sync</h4>
                                     <p className="text-slate-500 text-xs mt-1">Fetch new timetables daily at midnight</p>
                                 </div>
-                                <ToggleRight size={36} className="text-emerald-500 shrink-0 cursor-pointer" />
+                                <div onClick={() => updateSetting('automatedScheduleSync', !automatedScheduleSync)} className="cursor-pointer">
+                                    {automatedScheduleSync ? <ToggleRight size={36} className="text-emerald-500 shrink-0" /> : <ToggleLeft size={36} className="text-slate-300 shrink-0" />}
+                                </div>
                             </div>
                             <hr className="border-slate-100" />
 
@@ -68,7 +80,20 @@ const AdminSettings = ({ isWiping, wipeGlobalClasses }) => {
                                     <h4 className="font-semibold text-slate-800 text-sm">Maintenance Mode</h4>
                                     <p className="text-slate-500 text-xs mt-1">Restrict access to admins only</p>
                                 </div>
-                                <ToggleLeft size={36} className="text-slate-300 shrink-0 cursor-pointer" />
+                                <div onClick={() => updateSetting('maintenanceMode', !maintenanceMode)} className="cursor-pointer">
+                                    {maintenanceMode ? <ToggleRight size={36} className="text-emerald-500 shrink-0" /> : <ToggleLeft size={36} className="text-slate-300 shrink-0" />}
+                                </div>
+                            </div>
+                            <hr className="border-slate-100" />
+
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-slate-800 text-sm">Gemini AI for Assistant</h4>
+                                    <p className="text-slate-500 text-xs mt-1">Use Gemini API for smarter assistant responses</p>
+                                </div>
+                                <div onClick={() => updateSetting('geminiAssistantEnabled', !geminiAssistantEnabled)} className="cursor-pointer">
+                                    {geminiAssistantEnabled ? <ToggleRight size={36} className="text-emerald-500 shrink-0" /> : <ToggleLeft size={36} className="text-slate-300 shrink-0" />}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -89,7 +114,9 @@ const AdminSettings = ({ isWiping, wipeGlobalClasses }) => {
                                     <h4 className="font-semibold text-slate-800 text-sm">New User Alerts</h4>
                                     <p className="text-slate-500 text-xs mt-1">Notify admins on new registrations</p>
                                 </div>
-                                <ToggleRight size={36} className="text-emerald-500 shrink-0 cursor-pointer" />
+                                <div onClick={() => updateSetting('newUserAlerts', !newUserAlerts)} className="cursor-pointer">
+                                    {newUserAlerts ? <ToggleRight size={36} className="text-emerald-500 shrink-0" /> : <ToggleLeft size={36} className="text-slate-300 shrink-0" />}
+                                </div>
                             </div>
                         </div>
                     </div>

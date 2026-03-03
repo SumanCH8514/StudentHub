@@ -5,6 +5,7 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  setDoc,
   deleteDoc,
   getDocs,
   writeBatch,
@@ -38,6 +39,13 @@ const AdminPanel = () => {
   const [userPhoto, setUserPhoto] = useState(null);
   const [adminName, setAdminName] = useState("Admin User");
   const [isWiping, setIsWiping] = useState(false);
+  const [systemSettings, setSystemSettings] = useState({
+    geminiAssistantEnabled: false,
+    allowPublicRegistration: true,
+    automatedScheduleSync: true,
+    maintenanceMode: false,
+    newUserAlerts: true
+  });
   const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
@@ -67,6 +75,19 @@ const AdminPanel = () => {
       setAdminName(currentUser.displayName || "Admin User");
 
       try {
+        // Fetch System Settings
+        const systemDoc = await getDoc(doc(db, "settings", "system"));
+        if (systemDoc.exists()) {
+          const data = systemDoc.data();
+          setSystemSettings({
+            geminiAssistantEnabled: data.geminiAssistantEnabled ?? false,
+            allowPublicRegistration: data.allowPublicRegistration ?? true,
+            automatedScheduleSync: data.automatedScheduleSync ?? true,
+            maintenanceMode: data.maintenanceMode ?? false,
+            newUserAlerts: data.newUserAlerts ?? true
+          });
+        }
+
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
@@ -128,6 +149,75 @@ const AdminPanel = () => {
     setIsWiping(false);
   };
 
+  const initiateFullSystemReset = async () => {
+    if (!window.confirm("🔴 FINAL WARNING: This will PERMANENTLY WIPE EVERYTHING (Routines, Holidays, and ALL Students). This is irreversible. Are you absolutely certain?")) {
+      return;
+    }
+
+    const authCode = prompt("To confirm, type THE NAMES OF ALL TABLES TO BE PURGED: 'ROUTINES, HOLIDAYS, USERS'");
+    if (authCode !== "ROUTINES, HOLIDAYS, USERS") {
+      alert("Incorrect confirmation code. Reset aborted.");
+      return;
+    }
+
+    setIsWiping(true);
+    try {
+      const batch = writeBatch(db);
+
+      // 1. Wipe Routines
+      const routineSnap = await getDocs(collection(db, "shared_routines"));
+      routineSnap.docs.forEach(d => batch.delete(d.ref));
+
+      // 2. Wipe Holidays
+      const holidaySnap = await getDocs(collection(db, "holidays"));
+      holidaySnap.docs.forEach(d => batch.delete(d.ref));
+
+      // 3. Wipe Non-Admin Users
+      const usersSnap = await getDocs(collection(db, "users"));
+      usersSnap.docs.forEach(d => {
+        if (d.data().role !== "admin") {
+          batch.delete(d.ref);
+        }
+      });
+
+      // 4. Reset System Settings
+      const settingsRef = doc(db, "settings", "system");
+      batch.set(settingsRef, {
+        allowPublicRegistration: true,
+        automatedScheduleSync: true,
+        maintenanceMode: false,
+        newUserAlerts: true,
+        geminiAssistantEnabled: false
+      });
+
+      await batch.commit();
+      alert("System has been restored to factory settings. All non-admin data has been purged.");
+      setClassesCount(0);
+      setUsers([]);
+    } catch (err) {
+      console.error("System Reset Failed:", err);
+      alert("Reset failed: " + err.message);
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
+  const updateSystemSetting = async (key, value) => {
+    // Optimistic update
+    setSystemSettings(prev => ({ ...prev, [key]: value }));
+    try {
+      await setDoc(doc(db, "settings", "system"), { [key]: value }, { merge: true });
+    } catch (err) {
+      console.error(`Failed to update system setting ${key}:`, err);
+      // Rollback
+      const systemDoc = await getDoc(doc(db, "settings", "system"));
+      if (systemDoc.exists()) {
+        const data = systemDoc.data();
+        setSystemSettings(prev => ({ ...prev, [key]: data[key] }));
+      }
+    }
+  };
+
   const currentUser = auth.currentUser;
   const userEmail = currentUser?.email || "";
 
@@ -165,6 +255,8 @@ const AdminPanel = () => {
         <AdminSettings
           isWiping={isWiping}
           wipeGlobalClasses={wipeGlobalClasses}
+          settings={systemSettings}
+          updateSetting={updateSystemSetting}
         />
       )}
 
@@ -228,11 +320,18 @@ const AdminPanel = () => {
             </div>
 
             <button
-              onClick={() => alert("Global System Reset initiated... (Not fully hooked up yet)")}
+              onClick={initiateFullSystemReset}
+              disabled={isWiping}
               className="flex flex-col items-center gap-1.5 px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg transition-all mx-auto shadow-xl shadow-red-500/20 active:scale-95 group w-full sm:w-auto"
             >
-              <span>CONFIRM SYSTEM RESET</span>
-              <span className="text-xs font-medium text-red-200 uppercase tracking-widest">Requires Re-Authentication</span>
+              {isWiping ? (
+                <Loader2 className="animate-spin" size={24} />
+              ) : (
+                <>
+                  <span>CONFIRM SYSTEM RESET</span>
+                  <span className="text-xs font-medium text-red-200 uppercase tracking-widest">Wipes All Global Data</span>
+                </>
+              )}
             </button>
           </div>
         </div>

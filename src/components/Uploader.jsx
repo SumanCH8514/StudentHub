@@ -59,7 +59,7 @@ const Uploader = ({ onUploadSuccess }) => {
         throw new Error("Incomplete profile. Please update University, Stream, Semester, and Section in Settings.");
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const response = await model.generateContent({
         contents: [

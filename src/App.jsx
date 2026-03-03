@@ -5,18 +5,48 @@ import { onAuthStateChanged } from "firebase/auth";
 import Dashboard from "./components/Dashboard";
 import Auth from "./components/Auth";
 import AdminPanel from "./components/AdminPanel";
+import MaintenancePage from "./components/MaintenancePage";
 import favLogo from "./assets/fav.png";
+import { db } from "./firebaseConfig";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState(null);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    // Listen for Maintenance Mode
+    const unsubMaintenance = onSnapshot(doc(db, "settings", "system"), (snapshot) => {
+      if (snapshot.exists()) {
+        setMaintenanceMode(snapshot.data().maintenanceMode || false);
+      }
+    });
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // Fetch Role
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            setRole(userDoc.data().role || "user");
+          }
+        } catch (err) {
+          console.error("Error fetching user role:", err);
+        }
+      } else {
+        setRole(null);
+      }
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      unsubMaintenance();
+    };
   }, []);
 
   if (loading) {
@@ -39,12 +69,19 @@ function App() {
     );
   }
 
+  const isAdmin = role === "admin";
+  const showMaintenance = maintenanceMode && !isAdmin;
+
+  if (showMaintenance) {
+    return <MaintenancePage onBackToLogin={user ? () => signOut(auth) : null} />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={user ? <Dashboard /> : <Auth />} />
       <Route
         path="/admin/*"
-        element={user ? <AdminPanel /> : <Navigate to="/" replace />}
+        element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

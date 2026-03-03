@@ -35,11 +35,16 @@ import {
   Mic,
   Sun,
   Moon,
+  Sparkles,
+  School,
+  GraduationCap,
+  Users,
 } from "lucide-react";
 import Uploader from "./Uploader.jsx";
 import AdminPanel from "./AdminPanel.jsx";
 import Settings from "./Settings.jsx";
 import Support from "./Support.jsx";
+import Assistant from "./Assistant.jsx";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
@@ -84,17 +89,45 @@ const Dashboard = () => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUploader, setShowUploader] = useState(false);
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState(() => localStorage.getItem("currentView") || "dashboard");
+
+  // Persist view changes
+  useEffect(() => {
+    localStorage.setItem("currentView", view);
+  }, [view]);
   const [userRole, setUserRole] = useState("user");
   const [userName, setUserName] = useState("Student");
   const [userPhoto, setUserPhoto] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [fetchShared, setFetchShared] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains("dark"));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [holidays, setHolidays] = useState([]);
   const [systemUpdates, setSystemUpdates] = useState([]);
+
+  // Deep linking for settings
+  const [settingsConfig, setSettingsConfig] = useState({ tab: "profile", forceSidebar: false });
+  const handleOpenSettings = (tab = "profile", forceSidebar = false) => {
+    setSettingsConfig({ tab, forceSidebar });
+    setView("settings");
+    setIsSidebarOpen(false);
+  };
+
+  // Mark as Read Tracking
+  const [readUpdates, setReadUpdates] = useState(() => {
+    const saved = localStorage.getItem('studentHub_readUpdates');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const markUpdateAsRead = (id) => {
+    const updated = [...readUpdates, id];
+    setReadUpdates(updated);
+    localStorage.setItem('studentHub_readUpdates', JSON.stringify(updated));
+  };
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -145,6 +178,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported in your browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setSearchQuery(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -161,6 +227,7 @@ const Dashboard = () => {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
+          setUserData(data);
           setUserRole(data.role || "user");
           setUserName(
             data.fullName || data.name || user.displayName || "Student",
@@ -407,14 +474,30 @@ const Dashboard = () => {
   // Compute active holidays for the currently selected date
   const activeHolidays = holidays.filter((h) => {
     if (!h.date) return false;
-    // Format both to YYYY-MM-DD for reliable comparison
-    const hDateStr = new Date(h.date).toISOString().split('T')[0];
-    const selectedDateStr = selectedDate.toISOString().split('T')[0];
-    return hDateStr === selectedDateStr;
-  }).map(h => ({ ...h, isHoliday: true, type: 'holiday' }));
+
+    // Robust local date construction (YYYY-MM-DD) to avoid environment-specific shifts
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedDate.getDate()).padStart(2, '0');
+    const selectedDateStr = `${y}-${m}-${d}`;
+
+    return h.date === selectedDateStr;
+  }).map(h => ({
+    ...h,
+    isHoliday: true,
+    type: 'holiday',
+    // Accurate logic for labels
+    displayTitle: (selectedDate.toDateString() === new Date().toDateString())
+      ? `Today is a Holiday: ${h.occasion}`
+      : `${getFormattedDate(selectedDate)} is a Holiday: ${h.occasion}`
+  }));
 
   // Combine holidays and system updates into one feed
-  const allUpdates = [...activeHolidays, ...systemUpdates];
+  // Then filter out any updates the user has marked as read
+  const allUpdates = [
+    ...activeHolidays,
+    ...systemUpdates.map(u => ({ ...u, type: u.type || 'alert' }))
+  ].filter(update => !readUpdates.includes(update.id));
 
   if (view === "settings") {
     return (
@@ -424,12 +507,18 @@ const Dashboard = () => {
           setView("dashboard");
           setShowUploader(true);
         }}
+        initialTab={settingsConfig.tab}
+        showMobileSidebar={settingsConfig.forceSidebar}
       />
     );
   }
 
   if (view === "support") {
     return <Support onBack={() => setView("dashboard")} />;
+  }
+
+  if (view === "assistant") {
+    return <Assistant classes={classes} holidays={holidays} userData={userData} systemUpdates={systemUpdates} onBack={() => setView("dashboard")} />;
   }
 
   return (
@@ -513,10 +602,29 @@ const Dashboard = () => {
 
               {/* Profile info */}
               <div className="flex flex-col mb-6 mt-6">
-                <h3 className="text-[15px] font-black text-[#1e1b4b] dark:text-white mt-1 mb-0.5">
+                <h3 className="text-[15px] font-black text-[#1e1b4b] dark:text-white mt-1 mb-1.5 leading-tight">
                   {userName}
                 </h3>
-                <p className="text-[11px] font-medium text-slate-400 max-w-[180px] break-words">
+
+                {/* Mobile Sidebar: Detailed Profile Info */}
+                <div className="flex flex-col gap-1.5 items-center">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <School size={12} className="text-indigo-500" />
+                    <span>{userData?.university || "N/A"}</span>
+                    <span className="text-slate-300 mx-0.5">•</span>
+                    <GraduationCap size={12} className="text-purple-500" />
+                    <span>{userData?.stream || "N/A"}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <Users size={12} className="text-blue-500" />
+                    <span>Sec {userData?.section || "N/A"}</span>
+                    <span className="text-slate-300 mx-0.5">•</span>
+                    <Hash size={12} className="text-amber-500" />
+                    <span>Roll: {userData?.rollNumber || "N/A"}</span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] font-medium text-slate-400 mt-3 max-w-[180px] break-words italic">
                   {auth.currentUser?.email}
                 </p>
               </div>
@@ -538,13 +646,23 @@ const Dashboard = () => {
               )}
 
               <button
-                onClick={() => { setView("dashboard"); setIsSidebarOpen(false); }}
+                onClick={() => handleOpenSettings("profile", true)}
                 className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-white/60 transition-all active:scale-[0.98]"
               >
                 <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                   <LayoutDashboard size={18} className="text-indigo-600" />
                 </div>
                 <span className="text-[16px] font-black text-indigo-600 tracking-tight">Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => { setView("assistant"); setIsSidebarOpen(false); }}
+                className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-white/60 transition-all active:scale-[0.98]"
+              >
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                  <Sparkles size={18} className="text-purple-600" />
+                </div>
+                <span className="text-[16px] font-black text-purple-600 tracking-tight">AI Assistant</span>
               </button>
 
               <button
@@ -565,7 +683,7 @@ const Dashboard = () => {
               </button>
 
               <button
-                onClick={() => { setView("settings"); setIsSidebarOpen(false); }}
+                onClick={() => handleOpenSettings("preferences")}
                 className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-white/60 transition-all active:scale-[0.98]"
               >
                 <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
@@ -587,7 +705,7 @@ const Dashboard = () => {
               )}
 
               <button
-                onClick={() => { setView("settings"); setIsSidebarOpen(false); }}
+                onClick={() => handleOpenSettings("materials")}
                 className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-white/60 transition-all active:scale-[0.98]"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
@@ -664,11 +782,29 @@ const Dashboard = () => {
               </div>
               <input
                 type="text"
-                className="w-full pl-12 pr-12 py-4 bg-indigo-50/40 dark:bg-indigo-950/20 border-2 border-transparent focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 shadow-[inset_0_2px_8px_rgba(79,70,229,0.05)] text-slate-700 dark:text-slate-200 font-bold placeholder-slate-400 text-[13px] transition-all"
-                placeholder="Search for classes, teachers or ask any Questions"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-20 py-4 bg-indigo-50/40 dark:bg-indigo-950/20 border-2 border-transparent focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 shadow-[inset_0_2px_8px_rgba(79,70,229,0.05)] text-slate-700 dark:text-slate-200 font-bold placeholder-slate-400 text-[13px] transition-all"
+                placeholder="Search for classes, teachers or ask any Questions related to StudentHub"
               />
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-500 transition-all">
+              <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-rose-500 transition-all active:scale-90"
+                    title="Clear search"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+                <button
+                  onClick={handleVoiceSearch}
+                  className={cn(
+                    "p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-500 transition-all active:scale-90",
+                    isListening && "text-rose-500 bg-rose-50 dark:bg-rose-900/20 animate-pulse"
+                  )}
+                  title={isListening ? "Listening..." : "Voice Search"}
+                >
                   <Mic size={18} />
                 </button>
               </div>
@@ -697,7 +833,7 @@ const Dashboard = () => {
             )}
             <button
               onClick={toggleTheme}
-              className="hidden sm:flex p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600"
+              className="flex p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -766,9 +902,15 @@ const Dashboard = () => {
                 <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 border-2 border-slate-100 dark:border-slate-700">
                   <img src={userPhoto || defaultProfileImg} alt="Profile" className="w-full h-full object-cover" />
                 </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-800 dark:text-white text-[14px] truncate">{userName}</p>
-                  <p className="text-slate-500 dark:text-slate-400 text-[11px] truncate">{auth.currentUser?.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-slate-800 dark:text-white text-[14px] truncate leading-tight mb-0.5">{userName}</p>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
+                    <School size={10} className="text-indigo-500" />
+                    <span>{userData?.university || "N/A"}</span>
+                    <span className="text-slate-300">•</span>
+                    <GraduationCap size={10} className="text-purple-500" />
+                    <span>{userData?.stream || "N/A"}</span>
+                  </div>
                 </div>
               </div>
               {/* Nav links */}
@@ -779,6 +921,13 @@ const Dashboard = () => {
                 >
                   <User size={16} />
                   My Profile
+                </button>
+                <button
+                  onClick={() => { setView("assistant"); setIsProfileMenuOpen(false); }}
+                  className="flex items-center gap-3 px-3 py-2.5 text-[13px] text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors text-left w-full"
+                >
+                  <Sparkles size={16} className="text-purple-500" />
+                  AI Assistant
                 </button>
                 <button
                   onClick={() => { setView("settings"); setIsProfileMenuOpen(false); }}
@@ -818,7 +967,10 @@ const Dashboard = () => {
                 {allUpdates.length > 0 ? (
                   <div className="space-y-1">
                     {allUpdates.map((update) => (
-                      <div key={update.id} className="p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex gap-3 items-start">
+                      <div key={update.id} className={cn(
+                        "p-3 rounded-xl transition-colors flex gap-3 items-start",
+                        update.isHoliday ? "bg-rose-50/50 dark:bg-rose-900/10 hover:bg-rose-50 dark:hover:bg-rose-900/20" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                      )}>
                         <div className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
                           update.isHoliday ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-500' :
@@ -828,14 +980,32 @@ const Dashboard = () => {
                         )}>
                           <Bell size={14} />
                         </div>
-                        <div>
-                          {update.isHoliday ? (
-                            <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">Today is a Holiday due to {update.occasion}</p>
-                          ) : (
-                            <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">{update.title}</p>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            {update.isHoliday ? (
+                              <p className="text-[13px] font-bold text-rose-700 dark:text-rose-400 leading-tight mb-0.5">
+                                {update.displayTitle}
+                              </p>
+                            ) : (
+                              <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">
+                                {update.title}
+                              </p>
+                            )}
+                            {!update.isHoliday && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markUpdateAsRead(update.id);
+                                }}
+                                className="p-1 -mr-1 -mt-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-md transition-colors shrink-0"
+                                title="Mark as Read"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
                           {update.description && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{update.description}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{update.description}</p>
                           )}
                           <p className="text-[10px] text-slate-400 font-medium mt-1">
                             {update.isHoliday ? 'Today' : update.createdAt ? new Date(update.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
@@ -1202,35 +1372,48 @@ const Dashboard = () => {
                             update.type === 'statement' ? "bg-amber-50/50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 dark:hover:bg-amber-900/20" :
                               "bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                       )}>
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full animate-pulse",
-                              (update.isHoliday || update.type === 'alert') ? "bg-rose-500" :
-                                update.type === 'statement' ? "bg-amber-500" : "bg-indigo-500"
-                            )}></div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full animate-pulse",
+                                (update.isHoliday || update.type === 'alert') ? "bg-rose-500" :
+                                  update.type === 'statement' ? "bg-amber-500" : "bg-indigo-500"
+                              )}></div>
+                            </div>
+                            <div>
+                              {update.isHoliday ? (
+                                <p className="text-sm font-bold text-rose-700 dark:text-rose-400 leading-tight mb-1">
+                                  {update.displayTitle}
+                                </p>
+                              ) : (
+                                <p className={cn(
+                                  "text-sm font-bold leading-tight mb-1 pr-6",
+                                  update.type === 'alert' ? "text-rose-700 dark:text-rose-400" :
+                                    update.type === 'statement' ? "text-amber-700 dark:text-amber-400" :
+                                      "text-indigo-700 dark:text-indigo-400"
+                                )}>
+                                  {update.title}
+                                </p>
+                              )}
+                              {update.description && (
+                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                  {update.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            {update.isHoliday ? (
-                              <p className="text-sm font-bold text-rose-700 dark:text-rose-400 leading-tight mb-1">
-                                Today is a Holiday due to {update.occasion}
-                              </p>
-                            ) : (
-                              <p className={cn(
-                                "text-sm font-bold leading-tight mb-1",
-                                update.type === 'alert' ? "text-rose-700 dark:text-rose-400" :
-                                  update.type === 'statement' ? "text-amber-700 dark:text-amber-400" :
-                                    "text-indigo-700 dark:text-indigo-400"
-                              )}>
-                                {update.title}
-                              </p>
-                            )}
-                            {update.description && (
-                              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                                {update.description}
-                              </p>
-                            )}
-                          </div>
+
+                          {/* Mark as Read Button */}
+                          {!update.isHoliday && (
+                            <button
+                              onClick={() => markUpdateAsRead(update.id)}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors shrink-0"
+                              title="Mark as Read"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1292,28 +1475,63 @@ const Dashboard = () => {
             </div>
 
             {/* User Profile Card */}
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-white/80 dark:border-slate-700 flex flex-col items-center justify-center text-center">
-              <div className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden bg-indigo-100 mb-4 z-10 -mt-2">
+            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-white/80 dark:border-slate-700 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+              {/* Profile Card Main Body */}
+              <div className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden bg-indigo-100 mb-6 z-10 transition-transform duration-500 group-hover:scale-105">
                 {userPhoto ? (
-                  <img
-                    src={userPhoto}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={userPhoto} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <img
-                    src={defaultProfileImg}
-                    alt="Default Profile"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={defaultProfileImg} alt="Default Profile" className="w-full h-full object-cover" />
                 )}
               </div>
-              {/* Fake backdrop line */}
-              <div className="w-full h-[1px] bg-slate-100 dark:bg-slate-700 absolute top-24 z-0"></div>
 
-              <h3 className="text-xl font-black text-[#1e1b4b] dark:text-white mt-4 bg-white dark:bg-slate-800 px-4 relative z-10">
-                {userName}
-              </h3>
+              <div className="relative z-10 space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-[#1e1b4b] dark:text-white tracking-tight">
+                    {userName}
+                  </h3>
+                  <p className="text-slate-400 text-xs font-medium italic">
+                    {auth.currentUser?.email}
+                  </p>
+                </div>
+
+                <div className="h-[1px] w-12 bg-indigo-100 dark:bg-slate-700 mx-auto"></div>
+
+                <div className="space-y-2.5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  {/* College * Stream Row */}
+                  <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-full border border-indigo-100/50 dark:border-indigo-900/30">
+                      <School size={14} className="text-indigo-500" />
+                      <span className="text-[11px] font-black uppercase tracking-tight">{userData?.university || "N/A"}</span>
+                    </div>
+                    <span className="text-slate-300 dark:text-slate-600">•</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50/50 dark:bg-purple-950/30 rounded-full border border-purple-100/50 dark:border-purple-900/30">
+                      <GraduationCap size={14} className="text-purple-500" />
+                      <span className="text-[11px] font-black uppercase tracking-tight">{userData?.stream || "N/A"}</span>
+                    </div>
+                  </div>
+
+                  {/* Section * Roll Row */}
+                  <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50/50 dark:bg-blue-950/30 rounded-full border border-blue-100/50 dark:border-blue-900/30">
+                      <Users size={14} className="text-blue-500" />
+                      <span className="text-[11px] font-black uppercase tracking-tight">Sec {userData?.section || "N/A"}</span>
+                    </div>
+                    <span className="text-slate-300 dark:text-slate-600">•</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50/50 dark:bg-amber-950/30 rounded-full border border-amber-100/50 dark:border-amber-900/30">
+                      <Hash size={14} className="text-amber-500" />
+                      <span className="text-[11px] font-black uppercase tracking-tight">Roll: {userData?.rollNumber || "N/A"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleOpenSettings("profile", true)}
+                  className="mt-4 px-6 py-2.5 bg-slate-50 dark:bg-slate-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 border border-slate-100 dark:border-slate-800"
+                >
+                  Manage Profile
+                </button>
+              </div>
             </div>
           </div>
         </div>

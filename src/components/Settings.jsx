@@ -117,17 +117,35 @@ const CardHeader = ({ icon: Icon, iconBg, iconColor, title, subtitle }) => (
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Main Component                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
-const Settings = ({ onBack, onSync }) => {
+const Settings = ({ onBack, onSync, initialTab = "profile", showMobileSidebar = false }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [message, setMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState(null);
   const [hasSaved, setHasSaved] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState("profile");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(showMobileSidebar);
+  const [activeNav, setActiveNav] = useState(initialTab);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [systemUpdates, setSystemUpdates] = useState([]);
+
+  // Mark as Read Tracking
+  const [readUpdates, setReadUpdates] = useState(() => {
+    const saved = localStorage.getItem('studentHub_readUpdates');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const markUpdateAsRead = (id) => {
+    const updated = [...readUpdates, id];
+    setReadUpdates(updated);
+    localStorage.setItem('studentHub_readUpdates', JSON.stringify(updated));
+  };
+
+  // Sycn state if props change (for deep linking from Dashboard)
+  useEffect(() => {
+    setActiveNav(initialTab);
+    if (showMobileSidebar) setIsSidebarOpen(true);
+  }, [initialTab, showMobileSidebar]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -195,7 +213,11 @@ const Settings = ({ onBack, onSync }) => {
     const unsubscribeUpdates = onSnapshot(
       qUpdates,
       (snapshot) => {
-        setSystemUpdates(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        // Filter out read updates straight away
+        const updates = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(update => !readUpdates.includes(update.id));
+        setSystemUpdates(updates);
       },
       (error) => {
         if (error.code === "permission-denied") {
@@ -593,10 +615,24 @@ const Settings = ({ onBack, onSync }) => {
                                 )}>
                                   <Bell size={14} />
                                 </div>
-                                <div>
-                                  <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">{update.title}</p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">{update.title}</p>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // prevent dropdown from closing if it has a click handler
+                                        markUpdateAsRead(update.id);
+                                        // Also filter it out from the current systemUpdates state immediately for snappy UI
+                                        setSystemUpdates(prev => prev.filter(u => u.id !== update.id));
+                                      }}
+                                      className="p-1 -ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-md transition-colors shrink-0"
+                                      title="Mark as Read"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
                                   {update.description && (
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{update.description}</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{update.description}</p>
                                   )}
                                   <p className="text-[10px] text-slate-400 font-medium mt-1">
                                     {update.createdAt ? new Date(update.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
@@ -811,13 +847,13 @@ const Settings = ({ onBack, onSync }) => {
                     )}
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Semester">
-                        <select name="semester" value={formData.semester} onChange={handleFieldChange} className={cn(inputCls(false), "appearance-none text-center")}>
+                      <Field label="Semester" icon={CalendarDays}>
+                        <select name="semester" value={formData.semester} onChange={handleFieldChange} className={cn(inputCls(), "appearance-none text-center")}>
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>Sem {n}</option>)}
                         </select>
                       </Field>
-                      <Field label="Section">
-                        <select name="section" value={formData.section} onChange={handleFieldChange} className={cn(inputCls(false), "appearance-none text-center")}>
+                      <Field label="Section" icon={Layers}>
+                        <select name="section" value={formData.section} onChange={handleFieldChange} className={cn(inputCls(), "appearance-none text-center")}>
                           {(formData.stream === "B.Tech" ? [1, 2, 3, 4, 5, 6, 7, 8] : [1, 2, 3, 4]).map((n) => <option key={n} value={n}>Sec {n}</option>)}
                         </select>
                       </Field>
@@ -899,12 +935,13 @@ const Settings = ({ onBack, onSync }) => {
                   title="Check Results"
                   subtitle="View and download your semester results"
                 />
-                <div className="p-8 text-center">
-                  <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <ClipboardList size={32} className="text-emerald-500" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Results Module Coming Soon</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mx-auto">We are currently integrating with the university database to fetch your semester marks and grade cards automatically.</p>
+                <div className="w-full relative min-h-[75vh] md:min-h-[85vh] rounded-b-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+                  <iframe
+                    src="https://sumanonline.com/studentHub/result/"
+                    title="StudentHub Results Portal"
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    allowFullScreen
+                  />
                 </div>
               </Card>
             )}
@@ -1098,7 +1135,7 @@ const Settings = ({ onBack, onSync }) => {
 
             {/* ── Save Button ── */}
             {!["security", "services", "results", "upload", "holidays", "materials", "papers"].includes(activeNav) && (
-              <div className="flex items-center gap-4 pt-1">
+              <div className="flex items-center justify-center sm:justify-start gap-4 pt-1">
                 <button
                   type="submit"
                   disabled={loading}

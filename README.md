@@ -1,107 +1,114 @@
-# AI Class Schedule Generator
+# 🎓 StudentHub | AI-Powered Academic Ecosystem
 
-This is a web application that helps in creating and managing class schedules using AI. It provides a user-friendly interface for administrators to upload class data, and for students to view their schedules. The application is built with modern web technologies and leverages AI for schedule generation.
+<p align="center">
+  <img src="src/assets/StudentHub-logo.png" alt="StudentHub Logo" width="180">
+</p>
 
-## Features
+<p align="center">
+  <b>Elevate your Learning Path with Intelligence & Style.</b>
+</p>
 
-- **User Authentication:** Secure login for administrators using Firebase Authentication.
-- **Dashboard:** A central hub for administrators to manage class data and generate schedules.
-- **AI-Powered Schedule Generation:** Utilizes Google's Generative AI to automatically create class schedules from uploaded data.
-- **File Upload:** Administrators can upload class data files (e.g., CSV, JSON) through the application.
-- **Dynamic UI:** A responsive and interactive user interface built with React and Tailwind CSS.
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/PWA-Ready-orange?style=for-the-badge" alt="PWA">
+  <img src="https://img.shields.io/badge/AI-Powered-purple?style=for-the-badge" alt="AI">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
+</p>
 
-## Tech Stack
+---
 
-- **Frontend:**
-  - [React](https://react.dev/) - A JavaScript library for building user interfaces.
-  - [Vite](https://vitejs.dev/) - A fast build tool for modern web development.
-  - [Tailwind CSS](https://tailwindcss.com/) - A utility-first CSS framework for styling.
-  - [Lucide React](https://lucide.dev/guide/packages/lucide-react) - A library of beautiful and consistent icons.
+## 🌟 Overview
 
-- **Backend & AI:**
-  - [Firebase](https://firebase.google.com/) - Used for user authentication and hosting.
-  - [Google Generative AI](https://ai.google.dev/) - Powers the automatic schedule generation.
+**StudentHub** is a premium, high-performance academic management platform designed to simplify student life. Beyond just a schedule viewer, it's a sophisticated "Academic OS" that leverages **Google Gemini AI** to automate routine generation, provides a seamless **PWA experience**, and features a state-of-the-art **Glassmorphism UI**.
 
-- **Development:**
-  - [ESLint](https://eslint.org/) - For code linting and maintaining code quality.
-  - [PostCSS](https://postcss.org/) - A tool for transforming CSS with JavaScript.
-  - [Autoprefixer](https://github.com/postcss/autoprefixer) - A PostCSS plugin to parse CSS and add vendor prefixes.
+## ✨ Core Features
 
-## Getting Started
+### 🧠 Intelligent Routine Engine
+- **AI-Powered Generation**: Converts raw class data into optimized, readable schedules using Google's Generative AI.
+- **Smart Conflict Resolution**: Automatically identifies and highlights schedule overlaps.
 
-To get a local copy up and running, follow these simple steps.
+### 📱 Premium User Experience
+- **Progressive Web App (PWA)**: Install StudentHub on your Mobile or Desktop for an app-like experience with offline support.
+- **Micro-Animations**: Butter-smooth transitions and reactive UI elements using `lucide-react` and custom CSS.
+- **Adaptive Theming**: Seamless transition between sophisticated **Dark** and **Light** modes.
+
+### 🛠️ Academic Control Center
+- **Institutional Sync**: Dynamic profile summaries featuring College, Stream, Section, and Roll details.
+- **Digital Library**: Integrated results viewer and academic resource hub.
+- **Smart Alerts**: Real-time notifications for holidays, schedule shifts, and system updates.
+
+---
+
+## 🚀 Tech Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, Vite 7, Tailwind CSS 4 |
+| **Icons & UI** | Lucide React, Glassmorphism, Mesh Gradients |
+| **Backend** | Firebase (Auth, Firestore) |
+| **AI Engine** | Google Gemini (Generative AI) |
+| **PWA** | Service Workers, Web App Manifest |
+
+---
+
+## 🛠️ Getting Started
 
 ### Prerequisites
-
-- [Node.js](https://nodejs.org/en/) installed on your machine.
-- A Firebase project with Authentication enabled.
-- A Google AI API key.
+- **Node.js** (v18+ recommended)
+- **Firebase Project** with Authentication & Firestore enabled.
+- **Google AI API Key** (from AI Studio).
 
 ### Installation
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/your-username/ai-class-schedules.git
-    cd ai-class-schedules
-    ```
+1. **Clone & Navigate**
+   ```bash
+   git clone https://github.com/SumanCH8514/Ai-Class-Schedules-Project.git
+   cd Ai-Class-Schedules
+   ```
 
-2.  **Install NPM packages:**
-    ```sh
-    npm install
-    ```
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-3.  **Set up environment variables:**
-    Create a `.env` file in the root of your project and add your Firebase and Google AI credentials. Refer to `src/firebaseConfig.js` for the required Firebase configuration.
+3. **Configure Environment**
+   Create a `.env` file in the root:
+   ```env
+   VITE_FIREBASE_API_KEY="..."
+   VITE_FIREBASE_AUTH_DOMAIN="..."
+   VITE_FIREBASE_PROJECT_ID="..."
+   VITE_GOOGLE_AI_API_KEY="..."
+   # ... add other Firebase keys
+   ```
 
-    ```
-    VITE_FIREBASE_API_KEY="your_api_key"
-    VITE_FIREBASE_AUTH_DOMAIN="your_auth_domain"
-    VITE_FIREBASE_PROJECT_ID="your_project_id"
-    VITE_FIREBASE_STORAGE_BUCKET="your_storage_bucket"
-    VITE_FIREBASE_MESSAGING_SENDER_ID="your_messaging_sender_id"
-    VITE_FIREBASE_APP_ID="your_app_id"
-    VITE_GOOGLE_AI_API_KEY="your_google_ai_api_key"
-    ```
+4. **Launch Development**
+   ```bash
+   npm run dev
+   ```
 
-### Running the Application
+---
 
-- **Development mode:**
-  This command will start the Vite development server.
-  ```sh
-  npm run dev
-  ```
+## 🤝 Contributions
 
-- **Production build:**
-  This command will build the application for production.
-  ```sh
-  npm run build
-  ```
+We welcome contributions from the community to help make StudentHub even better!
 
-- **Linting:**
-  This command will lint the codebase for any errors.
-  ```sh
-  npm run lint
-  ```
+- **Bug Reports**: Open an issue describing the bug and steps to reproduce.
+- **Feature Requests**: We love new ideas! Drop a feature request in the issues.
+- **Pull Requests**: 
+  1. Fork the repo.
+  2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+  3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+  4. Push to the branch (`git push origin feature/AmazingFeature`).
+  5. Open a Pull Request.
 
-## Folder Structure
+---
 
-```
-.
-├── public/                # Static assets
-├── src/
-│   ├── assets/            # Project assets (images, fonts)
-│   ├── components/        # React components
-│   │   ├── AdminPanel.jsx
-│   │   ├── Auth.jsx
-│   │   ├── Dashboard.jsx
-│   │   └── ...
-│   ├── App.jsx            # Main application component
-│   ├── firebaseConfig.js  # Firebase configuration
-│   ├── index.css          # Global styles
-│   └── main.jsx           # Entry point of the application
-├── .gitignore             # Git ignore file
-├── index.html             # Main HTML file
-├── package.json           # Project dependencies and scripts
-├── README.md              # Project documentation
-└── vite.config.js         # Vite configuration
-```
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  Maintained with ❤️ by <b>SumanOnline.Com</b>
+</p>
