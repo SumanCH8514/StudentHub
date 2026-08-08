@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { auth } from "./firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import Dashboard from "./components/Dashboard";
-import Auth from "./components/Auth";
-import AdminPanel from "./components/AdminPanel";
-import MaintenancePage from "./components/MaintenancePage";
-import favLogo from "./assets/fav.png";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import { db } from "./firebaseConfig";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { signOut } from "firebase/auth";
+import Loader from "./components/Loader";
+import favLogo from "./assets/fav.png";
+
+// Lazy-load heavy route components
+const Dashboard = React.lazy(() => import("./components/Dashboard"));
+const Auth = React.lazy(() => import("./components/Auth"));
+const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
+const MaintenancePage = React.lazy(() => import("./components/MaintenancePage"));
+const PrivacyPolicy = React.lazy(() => import("./components/PrivacyPolicy"));
+const TermsOfService = React.lazy(() => import("./components/TermsOfService"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -24,6 +28,21 @@ function App() {
         setMaintenanceMode(snapshot.data().maintenanceMode || false);
       }
     });
+    
+    // Enforce trailing slash on base URL (/routine -> /routine/)
+    // This is important for relative links and consistency.
+    const path = window.location.pathname;
+    if (path.endsWith("/routine")) {
+      window.location.replace(path + "/" + window.location.search + window.location.hash);
+    }
+
+    // Immediate Theme Initialization
+    const savedTheme = localStorage.getItem("studentHub_theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -32,7 +51,20 @@ function App() {
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
-            setRole(userDoc.data().role || "user");
+            const data = userDoc.data();
+            setRole(data.role || "user");
+
+            // Sync theme preference from Firestore to localStorage and DOM
+            const pref = data.themePreference;
+            if (pref) {
+              const isDark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+              if (isDark) {
+                document.documentElement.classList.add("dark");
+              } else {
+                document.documentElement.classList.remove("dark");
+              }
+              localStorage.setItem("studentHub_theme", pref === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : pref);
+            }
           }
         } catch (err) {
           console.error("Error fetching user role:", err);
@@ -50,23 +82,7 @@ function App() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-        <div className="relative flex items-center justify-center w-16 h-16">
-          {/* Outer spinning ring */}
-          <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
-          {/* Animated primary ring */}
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent dark:border-indigo-500 dark:border-t-transparent animate-spin"></div>
-          {/* Center Logo/Icon */}
-          <div className="absolute inset-0 m-auto w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/50 z-10 animate-pulse overflow-hidden">
-            <img src={favLogo} alt="Loading" className="w-[80%] h-[80%] object-contain" />
-          </div>
-        </div>
-        <p className="mt-6 text-slate-500 dark:text-slate-400 font-medium tracking-wide animate-pulse">
-          Starting StudentHub...
-        </p>
-      </div>
-    );
+    return <Loader />;
   }
 
   const isAdmin = role === "admin";
@@ -77,14 +93,15 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={user ? <Dashboard /> : <Auth />} />
-      <Route
-        path="/admin/*"
-        element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />}
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <React.Suspense fallback={<Loader />}>
+      <Routes>
+        <Route path="/" element={user ? <Dashboard /> : <Auth />} />
+        <Route path="/admin/*" element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </React.Suspense>
   );
 }
 

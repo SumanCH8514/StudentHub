@@ -1,17 +1,11 @@
 import React, { useState } from "react";
 import { collection, doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { v4 as uuidv4 } from "uuid";
-import { UploadCloud, FileImage, FileText, X, Loader2, AlertCircle } from "lucide-react"; // Added FileText
+import { UploadCloud, FileImage, FileText, X, AlertCircle, Sparkles, CheckCircle2 } from "lucide-react";
+import Loader from "./Loader.jsx";
 
-const GEMINI_KEYS = [
-  import.meta.env.VITE_GEMINI_API_KEY_1,
-  import.meta.env.VITE_GEMINI_API_KEY_2,
-  import.meta.env.VITE_GEMINI_API_KEY_3,
-  import.meta.env.VITE_GEMINI_API_KEY_4,
-  import.meta.env.VITE_GEMINI_API_KEY_5,
-];
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
 
 const Uploader = ({ onUploadSuccess }) => {
   const [image, setImage] = useState(null);
@@ -26,28 +20,12 @@ const Uploader = ({ onUploadSuccess }) => {
     setError("");
 
     try {
-      // Fetch system settings to determine which Gemini Key to use globally
-      const systemDoc = await getDoc(doc(db, "settings", "system"));
-      let activeKeyIndex = 0; // Default to Key 1
-      if (systemDoc.exists() && systemDoc.data().activeGeminiKeyId !== undefined) {
-        // The db stores 1, 2, 3 so convert to 0-based array index:
-        activeKeyIndex = Math.max(0, Math.min(4, parseInt(systemDoc.data().activeGeminiKeyId) - 1));
-      }
-
-      const activeGeminiKey = GEMINI_KEYS[activeKeyIndex];
-      if (!activeGeminiKey) {
-        throw new Error("Active Gemini API Key is missing or invalid in server configuration.");
-      }
-
-      const genAI = new GoogleGenerativeAI(activeGeminiKey);
-      const reader = new FileReader();
-
       const base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
         reader.readAsDataURL(image);
       });
 
-      // Fetch user profile to get university, stream, semester, section
       const userProfileDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       if (!userProfileDoc.exists()) {
         throw new Error("Please update your profile in Settings before syncing routines.");
@@ -59,35 +37,37 @@ const Uploader = ({ onUploadSuccess }) => {
         throw new Error("Incomplete profile. Please update University, Stream, Semester, and Section in Settings.");
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "Extract routine: JSON array of objects {day, subject, teacher, time}. Return ONLY the JSON array, no markdown formatting or extra text.",
-              },
-              { inlineData: { data: base64Data, mimeType: image.type } },
-            ],
-          },
-        ],
+      const res = await fetch(`${BACKEND_URL}/api/parse-routine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          mimeType: image.type,
+          section,
+          stream,
+          semester
+        })
       });
 
-      const responseData = await response.response;
-      let text = responseData.text();
-
-      if (!text) {
-        throw new Error("AI returned an empty response. Please try a clearer image.");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to parse routine using backend worker.");
       }
 
-      // Clean up markdown formatting if present
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      let schedule = data.routine;
 
-      const schedule = JSON.parse(text);
+      if (!Array.isArray(schedule)) {
+        if (schedule && typeof schedule === "object") {
+          const possibleArray = schedule.routine || schedule.schedule || schedule.data || schedule.classes || Object.values(schedule).find(v => Array.isArray(v));
+          if (Array.isArray(possibleArray)) {
+            schedule = possibleArray;
+          } else if (schedule.subject || schedule.day) {
+            schedule = [schedule];
+          }
+        }
+      }
 
-      if (Array.isArray(schedule)) {
+      if (Array.isArray(schedule) && schedule.length > 0) {
         const batch = writeBatch(db);
         const sharedRoutinesRef = collection(db, "shared_routines");
 
@@ -110,12 +90,27 @@ const Uploader = ({ onUploadSuccess }) => {
       if (onUploadSuccess) onUploadSuccess();
     } catch (e) {
       console.error("Upload error details:", e);
-      let errorMsg = "Failed to parse and save the routine.";
-      if (e.message?.includes("400")) {
-        errorMsg = "AI could not process this image. Is it too blurry or too small?";
-      } else if (e.message) {
-        errorMsg = e.message;
+      let rawMsg = e.message || "";
+      let errorMsg = "Failed to parse and save the routine. Please contact administrator for further assistance.";
+      
+      if (rawMsg.includes("valid schedule format") || rawMsg.includes("unable to parse images")) {
+        errorMsg = "Could not extract class schedule from image. Please ensure the routine image is clear and readable.";
+      } else if (rawMsg.includes("429") || rawMsg.toLowerCase().includes("quota") || rawMsg.toLowerCase().includes("rate limit")) {
+        errorMsg = "AI Rate Limit Exceeded (429). Please try again in a minute or contact administrator.";
+      } else if (rawMsg.includes("401") || rawMsg.toLowerCase().includes("invalid api key")) {
+        errorMsg = "Groq API Key Invalid (401). Please check GROQ_API_KEY in Cloudflare backend.";
+      } else if (rawMsg.includes("403") || rawMsg.toLowerCase().includes("forbidden") || rawMsg.toLowerCase().includes("permission")) {
+        errorMsg = "AI Access Denied (403). Please contact administrator for further assistance.";
+      } else if (rawMsg.includes("404")) {
+        errorMsg = "AI Model Service Unavailable (404). Please contact administrator for further assistance.";
+      } else if (rawMsg.includes("400")) {
+        errorMsg = "AI Vision could not process this image format. Is it corrupt or unreadable?";
+      } else if (rawMsg.includes("Incomplete profile") || rawMsg.includes("Authentication required") || rawMsg.includes("Please update your profile")) {
+        errorMsg = rawMsg;
+      } else if (rawMsg) {
+        errorMsg = `${rawMsg}. Please contact administrator for further assistance.`;
       }
+
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -123,94 +118,105 @@ const Uploader = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="p-6 md:p-10 w-full relative">
-      {/* Header section */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl md:text-3xl font-black text-slate-950 tracking-tight leading-tight">
-          Sync <span className="text-indigo-600">Schedule</span>
+    <div className="p-5 sm:p-8 md:p-10 w-full relative bg-white dark:bg-slate-900 transition-colors">
+      <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 shadow-xl shadow-indigo-500/25 text-white flex items-center justify-center mb-4 transition-transform hover:scale-110 duration-300">
+          <Sparkles size={28} className="animate-pulse" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-900 dark:text-white">
+          Sync <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-400 dark:to-purple-400">Schedule</span>
         </h2>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 opacity-60">
-          Intelligent AI Extraction
-        </p>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-[11px] font-bold rounded-full border border-indigo-100 dark:border-indigo-900/40 mt-3">
+          <span>✨ Powered by StudentHub Vision AI</span>
+        </div>
       </div>
 
-      {/* Upload Zone */}
       {!image ? (
-        <label className="border-2 border-dashed border-slate-300 rounded-[2.5rem] p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/50 hover:border-indigo-400 transition-all group mb-8">
-          <div className="bg-slate-100 p-5 rounded-[1.5rem] mb-4 group-hover:bg-indigo-100 transition-colors group-hover:scale-110 duration-300">
+        <label className="border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-slate-800/40 rounded-[2.25rem] p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 dark:hover:bg-slate-800/80 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300 group mb-6 shadow-inner relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-700 p-4 sm:p-5 rounded-2xl mb-4 shadow-xl shadow-indigo-500/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0">
             <UploadCloud
               size={36}
-              className="text-slate-400 group-hover:text-indigo-600 transition-colors"
+              className="text-indigo-600 dark:text-indigo-400"
             />
           </div>
-          <span className="font-black text-slate-700 text-xl text-center">
-            Click to browse
+          <span className="font-black text-slate-800 dark:text-white text-lg sm:text-xl text-center leading-tight">
+            Drop routine image or click to browse
           </span>
-          <span className="text-slate-400 font-medium mt-2 text-center">
-            Supports JPG, PNG, WEBP, PDF
-          </span>
+          <p className="text-slate-400 dark:text-slate-500 text-xs sm:text-sm font-medium mt-2 text-center">
+            Upload your official class schedule or exam timetable
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {["JPG", "PNG", "WEBP", "PDF"].map((fmt) => (
+              <span key={fmt} className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold rounded-md uppercase tracking-wider border border-slate-200/60 dark:border-slate-700">
+                {fmt}
+              </span>
+            ))}
+          </div>
           <input
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setImage(e.target.files[0])}
-            className="hidden" // Hides the ugly default input
+            className="hidden"
           />
         </label>
       ) : (
-        /* Selected File Card */
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-4 md:p-6 flex items-center justify-between mb-8 animate-in fade-in zoom-in-95 duration-300">
-          <div className="flex items-center gap-4 overflow-hidden">
-            <div className="bg-white p-4 rounded-2xl shadow-sm shrink-0">
+        <div className="bg-indigo-50/60 dark:bg-slate-800/60 border border-indigo-100 dark:border-slate-700 rounded-[2rem] p-4 sm:p-5 flex items-center justify-between mb-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex items-center gap-3.5 overflow-hidden">
+            <div className="bg-white dark:bg-slate-700 p-3.5 rounded-2xl shadow-md shrink-0">
               {image.type === "application/pdf" ? (
-                <FileText size={28} className="text-rose-500" />
+                <FileText size={26} className="text-rose-500" />
               ) : (
-                <FileImage size={28} className="text-indigo-600" />
+                <FileImage size={26} className="text-indigo-600 dark:text-indigo-400" />
               )}
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
-              <span className="font-bold text-slate-800 text-lg truncate">
+              <span className="font-bold text-slate-800 dark:text-white text-base truncate">
                 {image.name}
               </span>
-              <span className="text-indigo-400 text-sm font-bold">
-                {(image.size / 1024 / 1024).toFixed(2)} MB
-              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">
+                  {(image.size / 1024 / 1024).toFixed(2)} MB
+                </span>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Ready to parse
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={() => setImage(null)}
-            className="p-3 bg-white rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm shrink-0 active:scale-90"
+            className="p-2.5 bg-white dark:bg-slate-700 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all shadow-sm shrink-0 active:scale-90"
             title="Remove image"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Error Message UI */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 text-red-600 p-5 rounded-2xl mb-8 border border-red-100 animate-in fade-in slide-in-from-bottom-2">
-          <AlertCircle size={24} className="shrink-0" />
-          <p className="text-sm font-bold leading-tight">{error}</p>
+        <div className="flex items-center gap-3 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 p-4 rounded-2xl mb-6 border border-rose-100 dark:border-rose-900/40 animate-in fade-in slide-in-from-bottom-2">
+          <AlertCircle size={22} className="shrink-0" />
+          <p className="text-xs sm:text-sm font-bold leading-tight">{error}</p>
         </div>
       )}
 
-      {/* Submit Button */}
       <button
         onClick={handleUploadAndParse}
         disabled={loading || !image}
-        className={`w-full font-black text-lg py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all duration-300 ${loading || !image
-          ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-          : "bg-slate-900 text-white hover:shadow-2xl hover:bg-indigo-600 active:scale-[0.98]"
+        className={`w-full font-black text-base sm:text-lg py-4 sm:py-4.5 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 ${loading || !image
+          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700"
+          : "bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white shadow-xl shadow-indigo-500/25 hover:shadow-2xl hover:shadow-indigo-500/40 hover:scale-[1.01] active:scale-[0.98]"
           }`}
       >
         {loading ? (
           <>
-            <Loader2 size={24} className="animate-spin text-indigo-400" />
-            <span>AI Scanning...</span>
+            <Loader inline size="sm" />
+            <span>AI Scanning & Saving...</span>
           </>
         ) : (
           <span>
-            {image ? "Scan & Save Privately" : "Select an image first"}
+            {image ? "Scan & Sync Schedule" : "Select an image first"}
           </span>
         )}
       </button>

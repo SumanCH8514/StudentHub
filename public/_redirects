@@ -1,0 +1,5 @@
+/admin/*           /routine/admin          301
+/privacy-policy    /routine/privacy-policy 301
+/terms-of-service  /routine/terms-of-service 301
+/routine/*         /routine/index.html     200
+/*                 /index.html             200

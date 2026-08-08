@@ -25,3 +25,8 @@ firestore.indexes.json
 *.njsproj
 *.sln
 *.sw?
+
+# Local utility scripts (may contain credentials)
+scratch/
+test-gemini.js
+routine/

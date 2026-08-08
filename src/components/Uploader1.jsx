@@ -1,16 +1,10 @@
 import React, { useState } from "react";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-import { GoogleGenAI } from "@google/genai";
 import { v4 as uuidv4 } from "uuid";
 
-const GEMINI_KEYS = [
-  import.meta.env.VITE_GEMINI_API_KEY_1,
-  import.meta.env.VITE_GEMINI_API_KEY_2,
-  import.meta.env.VITE_GEMINI_API_KEY_3,
-  import.meta.env.VITE_GEMINI_API_KEY_4,
-  import.meta.env.VITE_GEMINI_API_KEY_5,
-];
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
+
 
 const Uploader = ({ onUploadSuccess }) => {
   const [image, setImage] = useState(null);
@@ -25,44 +19,27 @@ const Uploader = ({ onUploadSuccess }) => {
     setError("");
 
     try {
-      // Fetch system settings to determine which Gemini Key to use globally
-      const systemDoc = await getDoc(doc(db, "settings", "system"));
-      let activeKeyIndex = 0; // Default to Key 1
-      if (systemDoc.exists() && systemDoc.data().activeGeminiKeyId !== undefined) {
-        // The db stores 1, 2, 3 so convert to 0-based array index:
-        activeKeyIndex = Math.max(0, Math.min(4, parseInt(systemDoc.data().activeGeminiKeyId) - 1));
-      }
-
-      const activeGeminiKey = GEMINI_KEYS[activeKeyIndex];
-      if (!activeGeminiKey) {
-        throw new Error("Active Gemini API Key is missing or invalid in server configuration.");
-      }
-
-      const ai = new GoogleGenAI({ apiKey: activeGeminiKey });
-      const reader = new FileReader();
-
       const base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
         reader.readAsDataURL(image);
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "Extract routine: JSON array of objects {day, subject, teacher, time}.",
-              },
-              { inlineData: { data: base64Data, mimeType: image.type } },
-            ],
-          },
-        ],
-        config: { responseMimeType: "application/json" },
+      const res = await fetch(`${BACKEND_URL}/api/parse-routine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          mimeType: image.type
+        })
       });
 
-      const schedule = JSON.parse(response.text);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to parse routine.");
+      }
+
+      const schedule = data.routine;
 
       // Ensure the AI returned an array before we try to loop over it
       if (Array.isArray(schedule)) {

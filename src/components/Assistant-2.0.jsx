@@ -27,19 +27,16 @@ import aiAssistantPic from "../assets/StudentHub-ai-assistant-pic.png";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
 
 
+// Utility for cleaner conditional classes
 function cn(...inputs) {
     return twMerge(clsx(inputs));
 }
 
-const SpeakingMarkdown = ({ content }) => {
-    return <ReactMarkdown>{content}</ReactMarkdown>;
-};
-
-const Assistant = ({ onBack, classes = [], holidays = [], userData = null, systemUpdates = [] }) => {
+const Assistant2 = ({ onBack, classes = [], holidays = [], userData = null, systemUpdates = [] }) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [isListening, setIsListening] = useState(false);
-    const [voices, setVoices] = useState([]);
-    const [selectedVoiceIndex, setSelectedVoiceIndex] = useState(0);
+    // Google Cloud TTS config
+    const [selectedVoice, setSelectedVoice] = useState({ name: 'Aoede', label: 'Aoede (Female)' });
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [geminiConfig, setGeminiConfig] = useState({ enabled: false, keyIndex: 0 });
     const [messages, setMessages] = useState([
@@ -47,29 +44,10 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
     ]);
     const [isTyping, setIsTyping] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [speakingMsgId, setSpeakingMsgId] = useState(null);
-    const [speechProgress, setSpeechProgress] = useState(0);
+    const audioRef = useRef(null);
     const [voiceError, setVoiceError] = useState("");
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
-    const syncTimerRef = useRef(null);
-
-    const stopSpeaking = () => {
-        if (syncTimerRef.current) {
-            clearInterval(syncTimerRef.current);
-            syncTimerRef.current = null;
-        }
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
-        setIsSpeaking(false);
-        setSpeakingMsgId(null);
-        setSpeechProgress(0);
-    };
-
-    useEffect(() => {
-        return () => stopSpeaking();
-    }, []);
 
     // Load configuration and voices
     useEffect(() => {
@@ -92,64 +70,10 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             }
         };
 
-        const loadVoices = () => {
-            const availableVoices = window.speechSynthesis.getVoices();
-            if (availableVoices.length === 0) return;
-            setVoices(availableVoices);
-
-            const naturalVoiceIdx = availableVoices.findIndex(v =>
-                v.lang.toLowerCase().startsWith("en") &&
-                (v.name.toLowerCase().includes("natural") ||
-                 v.name.toLowerCase().includes("online") ||
-                 v.name.toLowerCase().includes("enhanced") ||
-                 v.name.toLowerCase().includes("neural"))
-            );
-
-            if (naturalVoiceIdx !== -1) {
-                setSelectedVoiceIndex(naturalVoiceIdx);
-                return;
-            }
-
-            const googleVoiceIdx = availableVoices.findIndex(v =>
-                v.lang.toLowerCase().startsWith("en") &&
-                (v.name.includes("Google UK English Female") ||
-                 v.name.includes("Google US English") ||
-                 v.name.includes("Google UK English Male"))
-            );
-
-            if (googleVoiceIdx !== -1) {
-                setSelectedVoiceIndex(googleVoiceIdx);
-                return;
-            }
-
-            const appleVoiceIdx = availableVoices.findIndex(v =>
-                v.lang.toLowerCase().startsWith("en") &&
-                (v.name.includes("Samantha") ||
-                 v.name.includes("Karen") ||
-                 v.name.includes("Daniel") ||
-                 v.name.includes("Siri"))
-            );
-
-            if (appleVoiceIdx !== -1) {
-                setSelectedVoiceIndex(appleVoiceIdx);
-                return;
-            }
-
-            const anyEnIdx = availableVoices.findIndex(v => v.lang.toLowerCase().startsWith("en"));
-            if (anyEnIdx !== -1) {
-                setSelectedVoiceIndex(anyEnIdx);
-            } else {
-                setSelectedVoiceIndex(0);
-            }
-        };
-
         fetchConfig();
-        loadVoices();
-        if (window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = loadVoices;
-        }
     }, []);
 
+    // Auto-scroll to bottom of conversation
     useEffect(() => {
         const timer = setTimeout(() => {
             if (messagesEndRef.current) {
@@ -159,71 +83,7 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
         return () => clearTimeout(timer);
     }, [messages, isTyping]);
 
-    const speak = (text, msgId = null) => {
-        if (!window.speechSynthesis || voices.length === 0) return;
-        stopSpeaking();
-
-        let cleanText = text
-            .replace(/```[\s\S]*?```/g, '')
-            .replace(/`[^`]*`/g, '')
-            .replace(/\*\*/g, '')
-            .replace(/\*/g, '')
-            .replace(/#{1,6}\s*/g, '')
-            .replace(/_+/g, '')
-            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-            .replace(/^[-•>\s]+/gm, '')
-            .replace(/---+/g, '')
-            .replace(/\|/g, '')
-            .replace(/=/g, ' ')
-            .replace(/^\s*[-*+]\s+/gm, '')
-            .replace(/\n{2,}/g, '. ')
-            .replace(/\n/g, ' ')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-
-        if (!cleanText) return;
-
-        setSpeakingMsgId(msgId);
-        setSpeechProgress(0);
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.voice = voices[selectedVoiceIndex];
-        utterance.lang = voices[selectedVoiceIndex]?.lang || "en-US";
-        utterance.rate = 0.96;
-        utterance.pitch = 1.05;
-
-        let startTime = 0;
-        const totalDurationMs = Math.max(1000, (cleanText.length / 15) * 1000 / (utterance.rate || 1.0));
-
-        utterance.onstart = () => {
-            setIsSpeaking(true);
-            startTime = performance.now();
-
-            if (syncTimerRef.current) clearInterval(syncTimerRef.current);
-            syncTimerRef.current = setInterval(() => {
-                const elapsed = performance.now() - startTime;
-                const pct = Math.min(98, Math.round((elapsed / totalDurationMs) * 100));
-                setSpeechProgress(pct);
-            }, 50);
-        };
-
-        utterance.onend = () => {
-            setSpeechProgress(100);
-            setTimeout(() => stopSpeaking(), 200);
-        };
-
-        utterance.onerror = () => stopSpeaking();
-
-        utterance.onboundary = (e) => {
-            if (e.charIndex !== undefined && cleanText.length > 0) {
-                const pct = Math.min(100, Math.round((e.charIndex / cleanText.length) * 100));
-                setSpeechProgress(pct);
-                startTime = performance.now() - (pct / 100) * totalDurationMs;
-            }
-        };
-
-        window.speechSynthesis.speak(utterance);
-    };
+    // Deprecated: We now rely on Gemini's native API audio buffer returned with the chat response.
 
     const handleSendMessage = (text, isVoiceInput = false) => {
         const query = text || searchQuery;
@@ -266,7 +126,7 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                     if (res.ok && data.success) {
                         responseText = data.reply;
                     } else {
-                        throw new Error(data.error || "Failed to get response from backend");
+                        throw new Error(data.error || "Failed to get AI response");
                     }
                 } catch (err) {
                     console.error("Cloudflare Worker Backend Error:", err);
@@ -364,8 +224,9 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             const wasOffline = !geminiConfig.enabled;
             const mockMatch = wasOffline && demoQuestions.find(item => query.toLowerCase().includes(item.question.toLowerCase()));
 
-            if (isVoiceInput || mockMatch) {
-                speak(responseText, aiMsg.id);
+            if (isVoiceInput && wasOffline) {
+                // Not supported offline without standard browser TTS
+                console.warn("Audio playback requires Gemini to be online.");
             }
         }, 500);
     };
@@ -434,41 +295,37 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                                 <Volume2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                             </button>
 
-                            {/* Voice Selection Dropdown */}
+                            {/* Voice Selection Dropdown (GCP Voices) */}
                             {isSettingsOpen && (
                                 <div className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:mt-3 w-auto sm:w-64 max-h-[60vh] sm:max-h-80 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-300">
                                     <div className="px-3 py-2 mb-1">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select AI Voice</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Gemini Voice</span>
                                     </div>
                                     <div className="space-y-1">
-                                        {voices.length > 0 ? (
-                                            voices.map((voice, index) => (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => {
-                                                        setSelectedVoiceIndex(index);
-                                                        setIsSettingsOpen(false);
-                                                        // Play a sample
-                                                        const sampleUtt = new SpeechSynthesisUtterance("Voice selected");
-                                                        sampleUtt.voice = voice;
-                                                        window.speechSynthesis.speak(sampleUtt);
-                                                    }}
-                                                    className={cn(
-                                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
-                                                        selectedVoiceIndex === index
-                                                            ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
-                                                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                                    )}
-                                                >
-                                                    <span className="truncate pr-2">{voice.name}</span>
-                                                    {selectedVoiceIndex === index && <Check size={14} />}
-                                                </button>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-4 text-center text-xs text-slate-400">
-                                                No voices found on this device.
-                                            </div>
-                                        )}
+                                        {[
+                                            { name: "Aoede", label: "Aoede (Female)" },
+                                            { name: "Puck", label: "Puck (Male)" },
+                                            { name: "Charon", label: "Charon (Male)" },
+                                            { name: "Kore", label: "Kore (Female)" },
+                                            { name: "Fenrir", label: "Fenrir (Male)" }
+                                        ].map((voice, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => {
+                                                    setSelectedVoice(voice);
+                                                    setIsSettingsOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
+                                                    selectedVoice.name === voice.name
+                                                        ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
+                                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                                )}
+                                            >
+                                                <span className="truncate pr-2">{voice.label}</span>
+                                                {selectedVoice.name === voice.name && <Check size={14} />}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -551,23 +408,12 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                                     {msg.role === "user" ? <User size={18} /> : <Bot size={18} />}
                                 </div>
                                 <div className={cn(
-                                    "relative max-w-[80%] p-4 sm:p-5 rounded-[1.5rem] text-sm sm:text-base font-medium leading-relaxed shadow-sm overflow-x-auto transition-all duration-300",
+                                    "max-w-[80%] p-4 sm:p-5 rounded-[1.5rem] text-sm sm:text-base font-medium leading-relaxed shadow-sm overflow-x-auto",
                                     msg.role === "user"
                                         ? "bg-indigo-600 text-white rounded-tr-none"
-                                        : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-none prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-slate-900 prose-pre:text-slate-100",
-                                    speakingMsgId === msg.id && "ring-2 ring-indigo-400/60 shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/40"
+                                        : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-none prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-slate-900 prose-pre:text-slate-100"
                                 )}>
-                                    {msg.role === "assistant" ? (
-                                        <SpeakingMarkdown content={msg.content} />
-                                    ) : msg.content}
-                                    {speakingMsgId === msg.id && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-[1.5rem] overflow-hidden bg-indigo-100 dark:bg-indigo-900/30">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 transition-all duration-100 ease-out shadow-sm"
-                                                style={{ width: `${Math.min(100, Math.max(0, speechProgress))}%` }}
-                                            />
-                                        </div>
-                                    )}
+                                    {msg.role === "assistant" ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
                                 </div>
                             </div>
                         ))}
@@ -618,8 +464,9 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                             <div className="flex items-center gap-1 sm:gap-2 pr-1 sm:pr-2">
                                 <button
                                     onClick={() => {
-                                        if (isSpeaking) {
-                                            stopSpeaking();
+                                        if (isSpeaking && audioRef.current) {
+                                            audioRef.current.pause();
+                                            setIsSpeaking(false);
                                         } else {
                                             handleVoiceSearch();
                                         }
@@ -654,4 +501,4 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
     );
 };
 
-export default Assistant;
+export default Assistant2;

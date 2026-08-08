@@ -6,12 +6,12 @@ import {
     UploadCloud,
     Edit3,
     Trash2,
-    Loader2,
     Save,
     X,
     Eye
 } from "lucide-react";
 import { clsx } from "clsx";
+import Loader from "../Loader.jsx";
 import { twMerge } from "tailwind-merge";
 
 function cn(...inputs) {
@@ -134,8 +134,7 @@ const AdminHolidaysManager = () => {
                     <div className="space-y-4">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20">
-                                <Loader2 className="animate-spin text-rose-500 mb-4" size={32} />
-                                <p className="text-slate-500 font-medium">Loading calendar...</p>
+                                <Loader inline size="md" message="Loading calendar..." />
                             </div>
                         ) : holidays.length > 0 ? (
                             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -199,8 +198,7 @@ const AdminHolidaysManager = () => {
                     <div className="space-y-4 max-w-4xl mx-auto">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20">
-                                <Loader2 className="animate-spin text-rose-500 mb-4" size={32} />
-                                <p className="text-slate-500 font-medium">Loading calendar...</p>
+                                <Loader inline size="md" message="Loading calendar..." />
                             </div>
                         ) : holidays.length > 0 ? (
                             <div className="bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-x-auto scrollbar-hide">

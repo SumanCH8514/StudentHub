@@ -19,12 +19,21 @@ import {
     CalendarDays,
     ClipboardList,
     Trash2,
+    MessageSquareText,
+    MessageCircleQuestion,
+    History,
+    Settings as Settings2,
+    CheckCircle2,
+    Files,
+    CalendarRange,
+    FileText,
+    BookOpen
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import defaultProfileImg from "../../assets/gojo-prof.jpg";
 
-import studentHubLogo from "../../assets/StudentHub-logo.png";
+import studentHubLogo from "../../assets/StudentHub-logo1.png";
 
 function cn(...inputs) {
     return twMerge(clsx(inputs));
@@ -38,11 +47,18 @@ const AdminLayout = ({
     userEmail,
     userPhoto,
     onLogout,
-    onBack
+    onBack,
+    notifications = [],
+    onMarkNotificationRead,
+    currentUserId
 }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isNotificationsMenuOpen, setIsNotificationsMenuOpen] = useState(false);
     const [showTranslate, setShowTranslate] = useState(false);
+
+    // Calculate unread
+    const unreadCount = notifications.filter(n => !n.readBy?.includes(currentUserId)).length;
 
     const handleDarkMode = () => {
         document.documentElement.classList.toggle('dark');
@@ -78,12 +94,28 @@ const AdminLayout = ({
     const uploadItems = [
         { id: "upload-holidays", label: "Upload Holiday List", icon: CalendarDays },
         { id: "upload-routine", label: "Class Routine", icon: ClipboardList },
+        { id: "upload-exam", label: "Exam Time Routine", icon: CalendarRange },
+        { id: "upload-forms", label: "Forms Link", icon: Files },
+        { id: "upload-question-papers", label: "QuestionPapers Link", icon: FileText },
+        { id: "upload-study-materials", label: "Study Materials Link", icon: BookOpen },
+    ];
+
+    const aiItems = [
+        { id: "ai-queries", label: "Assistant Queries", icon: MessageCircleQuestion },
+        { id: "ai-qa", label: "Assistant Q&A", icon: MessageSquareText },
+        { id: "ai-history", label: "Assistant Chat History", icon: History },
+        { id: "ai-settings", label: "Assistant Settings", icon: Settings2 },
     ];
 
     const dbItems = [
         { id: "db-reset", label: "Global System Reset", icon: Activity },
         { id: "db-del-holidays", label: "Delete Holiday List", icon: Trash2 },
         { id: "db-del-classes", label: "Delete Classes", icon: Trash2 },
+    ];
+
+    const supportItems = [
+        { id: "support-tickets", label: "View Tickets", icon: MessageSquareText },
+        { id: "support-settings", label: "Portal Settings", icon: Settings2 },
     ];
 
     return (
@@ -110,6 +142,7 @@ const AdminLayout = ({
                         <img
                             src={studentHubLogo}
                             alt="StudentHub Logo"
+                            className="h-10 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)] transition-all hover:scale-105"
                         />
                     </div>
                     {/* Mobile close button */}
@@ -189,6 +222,33 @@ const AdminLayout = ({
                     })}
 
                     <div className="mt-8 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        AI Assistant
+                    </div>
+                    {aiItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => {
+                                    setActiveTab(item.id);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-[15px] w-full text-left group",
+                                    isActive
+                                        ? "bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-600 text-white shadow-md shadow-emerald-500/20 font-medium"
+                                        : "text-slate-400 hover:text-white hover:bg-white/5 dark:hover:bg-white/10"
+                                )}
+                            >
+                                <Icon size={20} className={cn("shrink-0", isActive ? "text-white" : "text-emerald-400 group-hover:text-emerald-300")} />
+                                <span className={isActive ? "text-white" : "group-hover:text-emerald-300"}>{item.label}</span>
+                            </button>
+                        );
+                    })}
+
+                    <div className="mt-8 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                         Database
                     </div>
                     {dbItems.map((item) => {
@@ -211,6 +271,33 @@ const AdminLayout = ({
                             >
                                 <Icon size={20} className={cn("shrink-0", isActive ? "text-white" : "text-rose-400")} />
                                 <span className={isActive ? "text-white" : "group-hover:text-rose-400"}>{item.label}</span>
+                            </button>
+                        );
+                    })}
+
+                    <div className="mt-8 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Support Portal
+                    </div>
+                    {supportItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => {
+                                    setActiveTab(item.id);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-[15px] w-full text-left group",
+                                    isActive
+                                        ? "bg-gradient-to-r from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-600 text-white shadow-md shadow-amber-500/20 font-medium"
+                                        : "text-slate-400 hover:text-white hover:bg-white/5 dark:hover:bg-white/10"
+                                )}
+                            >
+                                <Icon size={20} className={cn("shrink-0", isActive ? "text-white" : "text-amber-400 group-hover:text-amber-300")} />
+                                <span className={isActive ? "text-white" : "group-hover:text-amber-300"}>{item.label}</span>
                             </button>
                         );
                     })}
@@ -264,10 +351,10 @@ const AdminLayout = ({
 
                         {/* Right: Actions & User Info */}
                         <div className="flex items-center gap-1 sm:gap-3 shrink-0">
-                            <div className="hidden sm:flex items-center gap-1">
+                            <div className="flex items-center gap-0.5 sm:gap-1">
                                 <button
                                     onClick={handleTranslate}
-                                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 active:scale-95 rounded-full transition-all"
+                                    className="hidden sm:flex p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 active:scale-95 rounded-full transition-all"
                                     title="Language"
                                 >
                                     <Globe size={22} />
@@ -281,97 +368,158 @@ const AdminLayout = ({
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('dashboard')}
-                                    className={cn("p-2 hover:bg-slate-50 active:scale-95 rounded-full transition-all", activeTab === 'dashboard' ? "text-indigo-600 bg-indigo-50" : "text-slate-500 hover:text-indigo-600")}
+                                    className={cn("hidden sm:flex p-2 hover:bg-slate-50 active:scale-95 rounded-full transition-all", activeTab === 'dashboard' ? "text-indigo-600 bg-indigo-50" : "text-slate-500 hover:text-indigo-600")}
                                     title="Quick Dashboard"
                                 >
                                     <LayoutDashboard size={22} />
                                 </button>
                                 <button
-                                    onClick={() => alert("No new system notifications.")}
+                                    onClick={() => {
+                                        setIsNotificationsMenuOpen(!isNotificationsMenuOpen);
+                                        setIsProfileMenuOpen(false);
+                                    }}
                                     className="relative p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 active:scale-95 rounded-full transition-all"
                                     title="Notifications"
                                 >
                                     <Bell size={22} />
-                                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>
+                                    {unreadCount > 0 && (
+                                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>
+                                    )}
                                 </button>
-                            </div>
 
-                            {/* Profile Dropdown Toggle */}
-                            <div className="relative ml-1 sm:ml-2">
+                                {/* Profile Dropdown Toggle */}
                                 <button
-                                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                                    className="flex items-center focus:outline-none"
+                                    onClick={() => {
+                                        setIsProfileMenuOpen(!isProfileMenuOpen);
+                                        setIsNotificationsMenuOpen(false);
+                                    }}
+                                    className="flex items-center focus:outline-none relative"
                                 >
-                                    <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-indigo-600 shadow-sm relative overflow-hidden bg-slate-100">
+                                    <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-indigo-600 shadow-sm overflow-hidden bg-slate-100">
                                         <img
                                             src={userPhoto || defaultProfileImg}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
                                         />
-                                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
                                     </div>
+                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full z-10"></span>
                                 </button>
-
-                                {/* Profile Popup */}
-                                {isProfileMenuOpen && (
-                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-slate-100 border flex items-center justify-center shrink-0 overflow-hidden">
-                                                <img
-                                                    src={userPhoto || defaultProfileImg}
-                                                    alt="Profile"
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-slate-800 text-sm truncate">{userName || "Admin User"}</p>
-                                                <p className="text-slate-500 text-xs truncate">{userEmail || "admin@studenthub.com"}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-2 flex flex-col">
-                                            <button
-                                                onClick={() => {
-                                                    setActiveTab('profile');
-                                                    setIsProfileMenuOpen(false);
-                                                }}
-                                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors text-left"
-                                            >
-                                                <User size={16} /> My Profile
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setActiveTab('settings');
-                                                    setIsProfileMenuOpen(false);
-                                                }}
-                                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors text-left"
-                                            >
-                                                <SettingsIcon size={16} /> Settings
-                                            </button>
-                                        </div>
-
-                                        <div className="p-2 border-t border-slate-100">
-                                            <button
-                                                onClick={onLogout}
-                                                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition-colors font-medium"
-                                            >
-                                                <LogOut size={16} />
-                                                Logout
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Profile menu background overlay */}
-                                {isProfileMenuOpen && (
-                                    <div
-                                        className="fixed inset-0 z-40 hidden sm:block"
-                                        onClick={() => setIsProfileMenuOpen(false)}
-                                    />
-                                )}
                             </div>
                         </div>
                     </div>
+
+                    {/* Global Notifications Dropdown */}
+                    {isNotificationsMenuOpen && (
+                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-80 sm:w-96 max-h-[70vh] flex flex-col bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                    <Bell size={16} className="text-indigo-500" />
+                                    Notifications
+                                </h3>
+                                {unreadCount > 0 && (
+                                    <span className="text-xs font-bold text-white bg-indigo-500 px-2 py-0.5 rounded-full">
+                                        {unreadCount} New
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                {notifications.length === 0 ? (
+                                    <div className="text-center p-6 text-slate-500 text-sm">
+                                        No notifications yet.
+                                    </div>
+                                ) : (
+                                    notifications.map(notif => {
+                                        const isUnread = !notif.readBy?.includes(currentUserId);
+                                        return (
+                                            <div key={notif.id} className={cn("p-3 rounded-lg flex gap-3 mb-1", isUnread ? "bg-indigo-50/50" : "hover:bg-slate-50 transition-colors")}>
+                                                <div className={cn("w-2 h-2 rounded-full mt-2 shrink-0", isUnread ? "bg-indigo-500 animate-pulse" : "bg-slate-300")} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={cn("text-sm", isUnread ? "font-bold text-slate-800" : "font-medium text-slate-700")}>{notif.title}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">{notif.message}</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
+                                                        {notif.timestamp?.toDate ? notif.timestamp.toDate().toLocaleString() : "Just now"}
+                                                    </p>
+                                                </div>
+                                                {isUnread && (
+                                                    <button
+                                                        onClick={() => onMarkNotificationRead?.(notif.id)}
+                                                        className="shrink-0 p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-md transition-all self-center"
+                                                        title="Mark as Read"
+                                                    >
+                                                        <CheckCircle2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Global Profile Dropdown (Anchored to Header Right) */}
+                    {isProfileMenuOpen && (
+                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-64 sm:w-72 bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+                                <div className="w-12 h-12 rounded-full bg-white border-2 border-indigo-100 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                                    <img
+                                        src={userPhoto || defaultProfileImg}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-slate-800 text-[15px] truncate">{userName || "Admin User"}</p>
+                                    <p className="text-slate-500 text-xs truncate">{userEmail || "admin@studenthub.com"}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-2 flex flex-col">
+                                <button
+                                    onClick={() => {
+                                        setActiveTab('profile');
+                                        setIsProfileMenuOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-lg transition-all text-left group"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                                        <User size={18} className="group-hover:text-indigo-600" />
+                                    </div>
+                                    My Profile
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setActiveTab('settings');
+                                        setIsProfileMenuOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-lg transition-all text-left group"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                                        <SettingsIcon size={18} className="group-hover:text-indigo-600" />
+                                    </div>
+                                    Settings
+                                </button>
+                            </div>
+
+                            <div className="p-3 border-t border-slate-100 bg-slate-50/30">
+                                <button
+                                    onClick={onLogout}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all font-bold shadow-sm shadow-rose-100 border border-rose-100 active:scale-95"
+                                >
+                                    <LogOut size={16} />
+                                    Logout Account
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Global Overlays */}
+                    {isProfileMenuOpen && (
+                        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsProfileMenuOpen(false)} />
+                    )}
+                    {isNotificationsMenuOpen && (
+                        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsNotificationsMenuOpen(false)} />
+                    )}
                 </header>
 
                 {/* PAGE CONTENT */}

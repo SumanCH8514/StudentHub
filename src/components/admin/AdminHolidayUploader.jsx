@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { collection, doc, writeBatch, getDoc, getDocs } from "firebase/firestore";
 import { db, auth } from "../../firebaseConfig";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { v4 as uuidv4 } from "uuid";
-import { UploadCloud, FileImage, FileText, X, Loader2, AlertCircle, CheckCircle2, CalendarDays } from "lucide-react";
+import { UploadCloud, FileImage, FileText, X, AlertCircle, CheckCircle2, CalendarDays } from "lucide-react";
+import Loader from "../Loader.jsx";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -11,13 +11,8 @@ function cn(...inputs) {
     return twMerge(clsx(inputs));
 }
 
-const GEMINI_KEYS = [
-    import.meta.env.VITE_GEMINI_API_KEY_1,
-    import.meta.env.VITE_GEMINI_API_KEY_2,
-    import.meta.env.VITE_GEMINI_API_KEY_3,
-    import.meta.env.VITE_GEMINI_API_KEY_4,
-    import.meta.env.VITE_GEMINI_API_KEY_5,
-];
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
+
 
 const AdminHolidayUploader = ({ onSuccess }) => {
     const [file, setFile] = useState(null);
@@ -35,46 +30,27 @@ const AdminHolidayUploader = ({ onSuccess }) => {
         setParsedHolidays([]);
 
         try {
-            const systemDoc = await getDoc(doc(db, "settings", "system"));
-            let activeKeyIndex = 0;
-            if (systemDoc.exists() && systemDoc.data().activeGeminiKeyId !== undefined) {
-                activeKeyIndex = Math.max(0, Math.min(4, parseInt(systemDoc.data().activeGeminiKeyId) - 1));
-            }
-
-            const activeGeminiKey = GEMINI_KEYS[activeKeyIndex];
-            if (!activeGeminiKey) throw new Error("Active Gemini API Key is missing.");
-
-            const genAI = new GoogleGenerativeAI(activeGeminiKey);
-            const reader = new FileReader();
-
             const base64Data = await new Promise((resolve) => {
+                const reader = new FileReader();
                 reader.onload = () => resolve(reader.result.split(",")[1]);
                 reader.readAsDataURL(file);
             });
 
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-            const response = await model.generateContent({
-                contents: [
-                    {
-                        role: "user",
-                        parts: [
-                            {
-                                text: "Extract holiday list: JSON array of objects {date: 'YYYY-MM-DD', occasion: 'String'}. Return ONLY the JSON array, no markdown formatting or extra text. Make sure dates are strictly YYYY-MM-DD format.",
-                            },
-                            { inlineData: { data: base64Data, mimeType: file.type } },
-                        ],
-                    },
-                ],
+            const res = await fetch(`${BACKEND_URL}/api/parse-holiday`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    imageBase64: base64Data,
+                    mimeType: file.type
+                })
             });
 
-            const responseData = await response.response;
-            let text = responseData.text();
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || "Failed to parse holiday list.");
+            }
 
-            if (!text) throw new Error("AI returned an empty response.");
-
-            text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-            const holidays = JSON.parse(text);
+            const holidays = data.holidays;
 
             if (Array.isArray(holidays)) {
                 const batch = writeBatch(db);
@@ -197,7 +173,7 @@ const AdminHolidayUploader = ({ onSuccess }) => {
             >
                 {loading ? (
                     <>
-                        <Loader2 size={18} className="animate-spin" />
+                        <Loader inline size="sm" />
                         <span>AI Processing...</span>
                     </>
                 ) : (

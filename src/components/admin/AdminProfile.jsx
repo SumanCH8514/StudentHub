@@ -6,17 +6,20 @@ import {
     Calendar,
     Key,
     Edit3,
-    Loader2,
     Save,
     X
 } from "lucide-react";
 import { clsx } from "clsx";
+import Loader from "../Loader.jsx";
 import { twMerge } from "tailwind-merge";
 import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { auth, db } from "../../firebaseConfig";
 import defaultProfileImg from "../../assets/gojo-prof.jpg";
+import { compressAndResizeImage } from "../../utils/imageCompressor";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
 
 function cn(...inputs) {
     return twMerge(clsx(inputs));
@@ -49,30 +52,37 @@ const AdminProfile = ({ userName, userEmail }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (file.size > 1024 * 1024) {
-            alert("Image size exceeds 1 MB limit!");
-            return;
-        }
+        const user = auth.currentUser;
+        try {
+            setSaving(true);
+            const compressedBase64 = await compressAndResizeImage(file, {
+                maxWidth: 500,
+                maxHeight: 500,
+                maxSizeMB: 1.0,
+            });
 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const base64 = reader.result;
-            setPhotoBase64(base64);
+            setPhotoBase64(compressedBase64);
 
-            // Save immediately
-            const user = auth.currentUser;
             if (user) {
-                setSaving(true);
-                try {
-                    await setDoc(doc(db, "users", user.uid), { photoBase64: base64 }, { merge: true });
-                } catch (err) {
-                    console.error("Error saving photo", err);
-                } finally {
-                    setSaving(false);
+                const response = await fetch(`${BACKEND_URL}/api/upload-avatar`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        imageBase64: compressedBase64,
+                        userId: user.uid,
+                    }),
+                });
+                const result = await response.json();
+                if (result.success && result.url) {
+                    setPhotoBase64(result.url);
+                    await setDoc(doc(db, "users", user.uid), { photoBase64: result.url }, { merge: true });
                 }
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+            console.error("Error compressing and uploading admin photo to R2:", err);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleSaveName = async () => {
@@ -102,7 +112,7 @@ const AdminProfile = ({ userName, userEmail }) => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {saving && <span className="text-sm text-indigo-500 font-medium animate-pulse">Saving...</span>}
+                    {saving && <Loader inline size="sm" message="Saving..." />}
                     {isEditing ? (
                         <div className="flex items-center gap-2">
                             <button

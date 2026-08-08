@@ -6,10 +6,10 @@ import {
     Globe,
     Database,
     AlertTriangle,
-    Loader2,
     ToggleLeft,
     ToggleRight
 } from "lucide-react";
+import Loader from "../Loader.jsx";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -156,7 +156,7 @@ const AdminSettings = ({ isWiping, wipeGlobalClasses, settings, updateSetting })
                             >
                                 {isWiping ? (
                                     <div className="flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin" size={18} />
+                                        <Loader inline size="sm" />
                                         <span>Purging Data...</span>
                                     </div>
                                 ) : (
