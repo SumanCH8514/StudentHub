@@ -318,7 +318,7 @@ const AdminLayout = ({
             {/* --- MAIN CONTENT AREA --- */}
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
                 {/* TOP NAVBAR */}
-                <header className="px-4 sm:px-6 py-3 sm:py-4 xl:px-8 mt-2 sm:mt-4 z-30 relative">
+                <header className="px-4 sm:px-6 py-3 sm:py-4 xl:px-8 mt-2 sm:mt-4 z-10 relative">
                     {/* Translate Dropdown Container */}
                     <div
                         id="google_translate_element"

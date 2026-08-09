@@ -3,6 +3,55 @@
 
 <head>
   <meta charset="UTF-8" />
+  <script>
+    (function () {
+      if (typeof window === 'undefined') return;
+      var filter = function (str) {
+        if (!str) return false;
+        var s = String(str).toLowerCase();
+        return s.indexOf('content.js') !== -1 ||
+          s.indexOf('polyfill.js') !== -1 ||
+          s.indexOf('could not establish connection') !== -1 ||
+          s.indexOf('receiving end does not exist') !== -1 ||
+          s.indexOf('beforeinstallpromptevent') !== -1 ||
+          s.indexOf('usecache') !== -1 ||
+          s.indexOf('content security policy') !== -1 ||
+          s.indexOf('unchecked runtime.lasterror') !== -1;
+      };
+
+      var _error = console.error;
+      console.error = function () {
+        for (var i = 0; i < arguments.length; i++) {
+          if (filter(arguments[i]) || filter(arguments[i] && arguments[i].message) || filter(arguments[i] && arguments[i].stack) || filter(String(arguments[i]))) return;
+        }
+        _error.apply(console, arguments);
+      };
+
+      var _warn = console.warn;
+      console.warn = function () {
+        for (var i = 0; i < arguments.length; i++) {
+          if (filter(arguments[i]) || filter(arguments[i] && arguments[i].message) || filter(arguments[i] && arguments[i].stack) || filter(String(arguments[i]))) return;
+        }
+        _warn.apply(console, arguments);
+      };
+
+      window.addEventListener('unhandledrejection', function (e) {
+        var reasonStr = e.reason ? (e.reason.message || e.reason.stack || String(e.reason)) : '';
+        if (filter(e.reason) || filter(reasonStr)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+
+      window.addEventListener('error', function (e) {
+        var errStr = e.message || (e.error && (e.error.message || e.error.stack)) || e.filename || String(e);
+        if (filter(errStr)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StudentHub | AI-Powered Academic Operating System</title>
 
@@ -17,7 +66,6 @@
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#6366f1" />
 
-  <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://studenthub.sumanonline.com/" />
   <meta property="og:site_name" content="StudentHub" />
@@ -26,7 +74,7 @@
     content="Smart schedules, real-time updates, AI-powered guidance, and a premium PWA experience for modern students." />
   <meta property="og:image" content="https://studenthub.sumanonline.com/fav.png" />
 
-  <!-- Google Fonts & Phosphor Icons -->
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -34,7 +82,7 @@
     rel="stylesheet" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-  <!-- Early Theme Detection Script -->
+
   <script>
     (function () {
       const path = window.location.pathname;
@@ -51,7 +99,6 @@
   </script>
 
   <style>
-    /* ── RESET & DESIGN TOKENS ── */
     *,
     *::before,
     *::after {
@@ -107,7 +154,7 @@
       transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* ── AMBIENT BACKGROUND GLOWS ── */
+
     .ambient-scene {
       position: fixed;
       inset: 0;
@@ -169,7 +216,7 @@
       mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
     }
 
-    /* ── CONTAINER & LAYOUT ── */
+
     .container {
       width: 100%;
       max-width: 1240px;
@@ -179,7 +226,7 @@
       z-index: 1;
     }
 
-    /* ── HEADER NAVIGATION ── */
+
     header {
       position: fixed;
       top: 0;
@@ -289,7 +336,7 @@
       height: 100%;
     }
 
-    /* Mobile-first Navigation Utilities */
+
     .mobile-only {
       display: none !important;
     }
@@ -445,7 +492,7 @@
       background: rgba(99, 102, 241, 0.06);
     }
 
-    /* ── HERO SECTION ── */
+
     .hero-section {
       padding-top: 160px;
       padding-bottom: 90px;
@@ -512,7 +559,7 @@
       flex-wrap: wrap;
     }
 
-    /* ── HERO PREVIEW DASHBOARD MOCKUP ── */
+
     .hero-mockup-wrapper {
       max-width: 1040px;
       margin: 0 auto;
@@ -671,7 +718,6 @@
       font-weight: 600;
     }
 
-    /* ── STATS COUNTER BANNER ── */
     .stats-banner {
       padding: 40px 0;
       margin-bottom: 80px;
@@ -702,7 +748,7 @@
       margin-top: 4px;
     }
 
-    /* ── FEATURES BENTO GRID ── */
+
     .features-section {
       padding: 80px 0;
     }
@@ -830,7 +876,7 @@
       color: var(--text-main);
     }
 
-    /* ── CAROUSEL CONTROLS ── */
+
     .carousel-controls {
       display: none;
       align-items: center;
@@ -884,7 +930,7 @@
       scrollbar-width: none;
     }
 
-    /* ── PWA INSTALL MODAL ── */
+
     .pwa-modal-overlay {
       position: fixed;
       inset: 0;
@@ -1000,7 +1046,7 @@
       box-shadow: 0 0 10px var(--primary-glow);
     }
 
-    /* ── INTERACTIVE AI ADVISOR DEMO SECTION ── */
+
     .ai-demo-section {
       padding: 90px 0;
       background: radial-gradient(circle at center, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
@@ -1096,7 +1142,7 @@
       transform: translateX(4px);
     }
 
-    /* ── CTA FOOTER BANNER ── */
+
     .cta-banner {
       padding: 90px 0;
     }
@@ -1125,7 +1171,7 @@
       font-size: 1.1rem;
     }
 
-    /* ── FOOTER ── */
+
     footer {
       border-top: 1px solid var(--card-border);
       padding: 60px 0 30px;
@@ -1208,7 +1254,7 @@
         font-size: 1.02rem !important;
       }
 
-      /* Hero Mockup Mobile Styling */
+
       .hero-mockup-card {
         padding: 1.1rem !important;
         border-radius: 22px !important;
@@ -1482,9 +1528,9 @@
         </p>
 
         <div class="hero-cta-group">
-          <a href="/studentHub/routine/" class="btn-primary" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
-            <span>Get Started Free</span>
-            <i class="ph ph-rocket-launch-bold"></i>
+          <a href="/routine/" class="btn-primary app-cta-btn" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
+            <span class="cta-text">Get Started Free</span>
+            <i class="ph ph-rocket-launch-bold cta-icon"></i>
           </a>
           <a href="#features" class="btn-secondary" style="padding: 0.9rem 2rem; font-size: 1.05rem;">
             <span>Explore Features</span>
@@ -1835,9 +1881,9 @@
           <h2>Ready to Upgrade Your Academic Life?</h2>
           <p>Join thousands of university students and institutional admins using StudentHub for smart, AI-driven
             schedule management.</p>
-          <a href="/routine/" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem;">
-            <span>Launch StudentHub App Now</span>
-            <i class="ph ph-arrow-right-bold"></i>
+          <a href="/routine/" class="btn-primary app-cta-btn" style="padding: 1rem 2.5rem; font-size: 1.1rem;">
+            <span class="cta-text">Get Started Free</span>
+            <i class="ph ph-rocket-launch-bold cta-icon"></i>
           </a>
         </div>
       </div>
@@ -2120,7 +2166,6 @@
     });
   </script>
 
-  <!-- Auth State Detection Module Script -->
   <script type="module">
     import { auth } from "/src/firebaseConfig.js";
     import { onAuthStateChanged } from "firebase/auth";
@@ -2129,14 +2174,14 @@
 
     onAuthStateChanged(auth, (user) => {
       ctaBtns.forEach(btn => {
-        const textEl = btn.querySelector('.cta-text');
-        const iconEl = btn.querySelector('.cta-icon');
+        const textEl = btn.querySelector('.cta-text') || btn.querySelector('span');
+        const iconEl = btn.querySelector('.cta-icon') || btn.querySelector('i');
         if (user) {
-          if (textEl) textEl.textContent = "Open App";
+          if (textEl) textEl.textContent = "Go to Dashboard";
           if (iconEl) iconEl.className = "ph ph-arrow-right-bold cta-icon";
         } else {
-          if (textEl) textEl.textContent = "SignUp";
-          if (iconEl) iconEl.className = "ph ph-user-plus-bold cta-icon";
+          if (textEl) textEl.textContent = "Get Started Free";
+          if (iconEl) iconEl.className = "ph ph-rocket-launch-bold cta-icon";
         }
       });
     });

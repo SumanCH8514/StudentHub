@@ -93,7 +93,7 @@ const Attendance = ({ onBack, showBack = true, hideSpacing = false, classes = []
     return (
         <div className={cn("min-h-screen bg-[#f4f7fc] dark:bg-slate-900 pb-12 animate-in fade-in duration-500", hideSpacing && "min-h-0 bg-transparent")}>
             {/* Header Container */}
-            <div className={cn("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", hideSpacing ? "pt-0" : "pt-6")}>
+            <div className={cn("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", hideSpacing ? "pt-4" : "pt-6")}>
                 {/* Centered Navigation & Title */}
                 <div className="flex flex-col items-center mb-10 animate-in fade-in slide-in-from-top-6 duration-700">
                     {showBack && (

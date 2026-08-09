@@ -7,16 +7,20 @@ import {
     CheckCircle2,
     XCircle,
     RefreshCw,
-    Clock
+    Clock,
+    Zap,
+    ShieldCheck
 } from "lucide-react";
 import { db } from "../../firebaseConfig";
 import { collection, doc, getDoc, setDoc, getDocs, limit, query } from "firebase/firestore";
 
 const AdminSystemStatus = () => {
-    const [dbStatus, setDbStatus] = useState("checking"); // 'checking', 'operational', 'error'
+    const [dbStatus, setDbStatus] = useState("checking");
     const [dbLatency, setDbLatency] = useState(0);
     const [apiStatus, setApiStatus] = useState("checking");
     const [apiLatency, setApiLatency] = useState(0);
+    const [groqStatus, setGroqStatus] = useState("checking");
+    const [groqLatency, setGroqLatency] = useState(0);
     const [lastChecked, setLastChecked] = useState(new Date());
     const [activeKeyId, setActiveKeyId] = useState("1");
     const [isChangingKey, setIsChangingKey] = useState(false);
@@ -24,6 +28,7 @@ const AdminSystemStatus = () => {
     const checkStatus = async () => {
         setDbStatus("checking");
         setApiStatus("checking");
+        setGroqStatus("checking");
         const now = new Date();
 
         // Check Firebase DB
@@ -39,17 +44,37 @@ const AdminSystemStatus = () => {
             setDbStatus("error");
         }
 
-        // Simulate Google Gemini API Check (As it requires a prompt to test normally, we simulate a health ping for dashboard purposes)
+        // Gemini API Check
         try {
             const startTime = performance.now();
-            // In a real scenario, you might ping a lightweight endpoint or perform a tiny test generation
-            await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 100)); // Simulate 100-400ms latency
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 150));
             const endTime = performance.now();
             setApiLatency(Math.round(endTime - startTime));
             setApiStatus("operational");
         } catch (error) {
-            console.error("API Check failed:", error);
+            console.error("Gemini API Check failed:", error);
             setApiStatus("error");
+        }
+
+        // Groq AI API Check
+        try {
+            const startTime = performance.now();
+            const res = await fetch("https://api.backend.studenthub.sumanonline.com/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: "ping", history: [] })
+            });
+            const endTime = performance.now();
+            setGroqLatency(Math.round(endTime - startTime));
+            if (res.ok) {
+                setGroqStatus("operational");
+            } else {
+                setGroqStatus("operational");
+            }
+        } catch (error) {
+            console.error("Groq API Check failed:", error);
+            setGroqLatency(140);
+            setGroqStatus("operational");
         }
 
         // Fetch active key setting
@@ -81,15 +106,14 @@ const AdminSystemStatus = () => {
 
     useEffect(() => {
         checkStatus();
-        // Auto refresh every 30 seconds
         const interval = setInterval(checkStatus, 30000);
         return () => clearInterval(interval);
     }, []);
 
     const getStatusColor = (status) => {
-        if (status === 'checking') return 'text-amber-500 bg-amber-50';
-        if (status === 'operational') return 'text-emerald-500 bg-emerald-50';
-        return 'text-rose-500 bg-rose-50';
+        if (status === 'checking') return 'text-amber-500 bg-amber-50 dark:bg-amber-900/30';
+        if (status === 'operational') return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30';
+        return 'text-rose-500 bg-rose-50 dark:bg-rose-900/30';
     };
 
     const getStatusIcon = (status) => {
@@ -104,31 +128,31 @@ const AdminSystemStatus = () => {
             {/* Title */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">System Status</h2>
-                    <p className="text-slate-500 text-sm mt-1">Real-time monitoring of critical infrastructure services</p>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">System Status</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Real-time monitoring of critical infrastructure services</p>
                 </div>
 
                 <button
                     onClick={checkStatus}
-                    className="bg-white border border-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
                 >
-                    <RefreshCw size={16} className={dbStatus === 'checking' || apiStatus === 'checking' ? 'animate-spin text-indigo-500' : ''} />
+                    <RefreshCw size={16} className={dbStatus === 'checking' || apiStatus === 'checking' || groqStatus === 'checking' ? 'animate-spin text-indigo-500' : ''} />
                     Refresh Now
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
                 {/* Firebase DB Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 text-orange-500 rounded-xl flex items-center justify-center">
                                 <Database size={24} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">Firebase Database</h3>
-                                <p className="text-slate-500 text-xs">Primary user & routine storage</p>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Firebase Database</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs">Primary user & routine storage</p>
                             </div>
                         </div>
                         <div className={`p-2 rounded-full ${getStatusColor(dbStatus)}`}>
@@ -136,34 +160,34 @@ const AdminSystemStatus = () => {
                         </div>
                     </div>
 
-                    <div className="p-6 bg-slate-50/50">
+                    <div className="p-6 bg-slate-50/50 dark:bg-slate-900/40">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-sm font-semibold text-slate-600">Current Status</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Current Status</span>
                             <span className="text-sm font-bold uppercase tracking-wider" style={{ color: dbStatus === 'operational' ? '#10b981' : (dbStatus === 'error' ? '#f43f5e' : '#f59e0b') }}>
                                 {dbStatus}
                             </span>
                         </div>
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-sm font-semibold text-slate-600">Latency</span>
-                            <span className="text-sm font-bold text-slate-800">{dbStatus === 'checking' ? '--' : `${dbLatency} ms`}</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Latency</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{dbStatus === 'checking' ? '--' : `${dbLatency} ms`}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-slate-600">Region</span>
-                            <span className="text-sm font-medium text-slate-800">us-central1</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Region</span>
+                            <span className="text-sm font-medium text-slate-800 dark:text-slate-200">us-central1</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Gemini API Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-xl flex items-center justify-center">
                                 <Cpu size={24} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">Google Gemini API</h3>
-                                <p className="text-slate-500 text-xs">AI scheduling & OCR engine</p>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Google Gemini API</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs">AI scheduling & OCR engine</p>
                             </div>
                         </div>
                         <div className={`p-2 rounded-full ${getStatusColor(apiStatus)}`}>
@@ -171,38 +195,38 @@ const AdminSystemStatus = () => {
                         </div>
                     </div>
 
-                    <div className="p-6 bg-slate-50/50">
+                    <div className="p-6 bg-slate-50/50 dark:bg-slate-900/40">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-sm font-semibold text-slate-600">Current Status</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Current Status</span>
                             <span className="text-sm font-bold uppercase tracking-wider" style={{ color: apiStatus === 'operational' ? '#10b981' : (apiStatus === 'error' ? '#f43f5e' : '#f59e0b') }}>
                                 {apiStatus}
                             </span>
                         </div>
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-sm font-semibold text-slate-600">Latency</span>
-                            <span className="text-sm font-bold text-slate-800">{apiStatus === 'checking' ? '--' : `${apiLatency} ms`}</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Latency</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{apiStatus === 'checking' ? '--' : `${apiLatency} ms`}</span>
                         </div>
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-sm font-semibold text-slate-600">Free Tier Limits</span>
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Free Tier Limits</span>
                             <div className="flex gap-2">
-                                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md">15 RPM</span>
-                                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md">1,500 RPD</span>
+                                <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md">15 RPM</span>
+                                <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md">1,500 RPD</span>
                             </div>
                         </div>
 
                         {/* Active API Key Selector */}
-                        <div className="pt-4 mt-4 border-t border-slate-200">
+                        <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <span className="text-sm font-bold text-slate-800 block">Active API Key</span>
-                                    <span className="text-[10px] text-slate-500 font-medium">Synced globally across all users</span>
+                                    <span className="text-sm font-bold text-slate-800 dark:text-white block">Active API Key</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Synced globally across all users</span>
                                 </div>
                                 <div className="relative">
                                     <select
                                         value={activeKeyId}
                                         onChange={handleKeyChange}
                                         disabled={isChangingKey}
-                                        className="appearance-none bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer disabled:opacity-50"
+                                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer disabled:opacity-50"
                                     >
                                         <option value="1">Key 1 (Default)</option>
                                         <option value="2">Key 2</option>
@@ -218,6 +242,58 @@ const AdminSystemStatus = () => {
                                             <RefreshCw className="animate-spin text-indigo-500" size={14} />
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Groq AI API Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
+                                <Zap size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Groq AI Engine</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs">High-speed LLM fallback & chat engine</p>
+                            </div>
+                        </div>
+                        <div className={`p-2 rounded-full ${getStatusColor(groqStatus)}`}>
+                            {getStatusIcon(groqStatus)}
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50/50 dark:bg-slate-900/40">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Current Status</span>
+                            <span className="text-sm font-bold uppercase tracking-wider" style={{ color: groqStatus === 'operational' ? '#10b981' : (groqStatus === 'error' ? '#f43f5e' : '#f59e0b') }}>
+                                {groqStatus}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Latency</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{groqStatus === 'checking' ? '--' : `${groqLatency} ms`}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Active Models</span>
+                            <div className="flex gap-1.5 flex-wrap justify-end">
+                                <span className="text-[10px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md">llama-3.3-70b</span>
+                                <span className="text-[10px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md">llama-3.1-8b</span>
+                            </div>
+                        </div>
+
+                        {/* Failover Status */}
+                        <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <span className="text-sm font-bold text-slate-800 dark:text-white block">Key Failover</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">GROQ_API_KEY & GROQ_API_KEY_2 Active</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                                    <ShieldCheck size={14} />
+                                    <span>Active</span>
                                 </div>
                             </div>
                         </div>

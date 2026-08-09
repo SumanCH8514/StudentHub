@@ -36,9 +36,10 @@ async function callGroqApi(env, groqMessages, systemInstruction = null) {
         "meta-llama/llama-3.2-11b-vision-instruct",
       ]
     : [
-        "llama-3.1-8b-instant",
-        "qwen-2.5-32b",
         "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
       ];
 
   const shuffledKeys = [...keys].sort(() => Math.random() - 0.5);
@@ -48,7 +49,7 @@ async function callGroqApi(env, groqMessages, systemInstruction = null) {
       try {
         let finalMessages = messagesPayload;
 
-        if (model === "llama-3.1-8b-instant" || model === "qwen-2.5-32b" || model === "llama-3.3-70b-versatile") {
+        if (model !== "llama-3.2-11b-vision-instruct" && model !== "meta-llama/llama-3.2-11b-vision-instruct") {
           finalMessages = messagesPayload.map(m => {
             if (Array.isArray(m.content)) {
               const textParts = m.content
@@ -158,19 +159,27 @@ async function callGeminiApi(env, contents, systemInstruction = null) {
 }
 
 async function callPrimaryAi(env, groqMessages, geminiContents, systemInstruction = null) {
-  try {
-    const groqReply = await callGroqApi(env, groqMessages, systemInstruction);
-    if (groqReply) return groqReply;
-  } catch (err) {}
+  let lastError = null;
 
+  // 1. Try Gemini API primary
   try {
     const geminiReply = await callGeminiApi(env, geminiContents, systemInstruction);
     if (geminiReply) return geminiReply;
   } catch (err) {
-    throw err;
+    lastError = err;
+    console.warn("Gemini API call failed, attempting Groq API fallback...", err ? err.message : "");
   }
 
-  throw new Error("AI parser failed to process request. Please check image quality or API keys.");
+  // 2. Fallback to Groq API (uses GROQ_API_KEY and GROQ_API_KEY_2)
+  try {
+    const groqReply = await callGroqApi(env, groqMessages, systemInstruction);
+    if (groqReply) return groqReply;
+  } catch (err) {
+    lastError = err;
+    console.warn("Groq API fallback failed:", err ? err.message : "");
+  }
+
+  throw lastError || new Error("AI services currently busy. Please try again in a moment.");
 }
 
 export default {
@@ -195,7 +204,92 @@ export default {
         );
       }
 
+      if (url.pathname === "/api/tts" && request.method === "POST") {
+        const body = await request.json();
+        const { text, voice = "Aoede", apiKey: clientApiKey } = body;
+
+        if (!text || typeof text !== "string" || text.trim().length === 0) {
+          return new Response(
+            JSON.stringify({ error: "Field 'text' is required" }),
+            { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+          );
+        }
+
+        const keys = [
+          clientApiKey,
+          env.GEMINI_API_KEY_1,
+          env.GEMINI_API_KEY_2,
+          env.GEMINI_API_KEY_3,
+          env.GEMINI_API_KEY_4,
+          env.GEMINI_API_KEY_5,
+          env.GEMINI_API_KEY,
+        ].filter(Boolean).map(k => typeof k === 'string' ? k.trim() : k);
+
+        const ttsModels = [
+          { model: "gemini-3.1-flash-tts-preview", apiVersion: "v1beta" },
+          { model: "gemini-2.5-flash-preview-tts", apiVersion: "v1beta" },
+          { model: "gemini-2.5-pro-preview-tts", apiVersion: "v1beta" },
+          { model: "gemini-2.0-flash-preview-tts", apiVersion: "v1beta" },
+        ];
+
+        const validVoices = ["Aoede", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Zephyr"];
+        const voiceName = validVoices.includes(voice) ? voice : "Aoede";
+
+        if (keys.length > 0) {
+          for (const apiKey of keys) {
+            for (const config of ttsModels) {
+              try {
+                const ttsUrl = `https://generativelanguage.googleapis.com/${config.apiVersion}/models/${config.model}:generateContent?key=${apiKey}`;
+
+                const payload = {
+                  contents: [{ role: "user", parts: [{ text: text.trim() }] }],
+                  generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                      voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName },
+                      },
+                    },
+                  },
+                };
+
+                const res = await fetch(ttsUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                  const data = await res.json();
+                  const audioPart = data?.candidates?.[0]?.content?.parts?.find(
+                    (p) => p.inlineData && p.inlineData.mimeType?.startsWith("audio/")
+                  );
+
+                  if (audioPart?.inlineData?.data) {
+                    return new Response(
+                      JSON.stringify({
+                        success: true,
+                        audio: audioPart.inlineData.data,
+                        mimeType: audioPart.inlineData.mimeType,
+                        voice: voiceName,
+                      }),
+                      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+                    );
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: false, requiresKey: true, message: "A working Gemini API key is required for Gemini AI Voice." }),
+          { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+        );
+      }
+
       if (url.pathname === "/api/chat" && request.method === "POST") {
+
         const body = await request.json();
         const { message, history = [], studentContext = {}, holidays = [], updates = [] } = body;
 
@@ -532,10 +626,24 @@ Only output valid raw JSON array without markdown formatting codeblocks.`;
 
         // Generate object key inside studenthub bucket at profile_pictures/
         const safeUserId = userId ? userId.replace(/[^a-zA-Z0-9_-]/g, "") : "user";
-        const key = fileName || `profile_pictures/${safeUserId}_${Date.now()}.${ext}`;
 
-        // Ensure key is prefixed with profile_pictures/ if not already
-        const finalKey = key.startsWith("profile_pictures/") ? key : `profile_pictures/${key}`;
+        // Cleanup any old profile picture objects for this user to ensure old pictures are deleted/replaced
+        if (safeUserId && safeUserId !== "user" && env.MY_BUCKET) {
+          try {
+            const listResult = await env.MY_BUCKET.list({ prefix: `profile_pictures/${safeUserId}` });
+            if (listResult && listResult.objects && listResult.objects.length > 0) {
+              for (const obj of listResult.objects) {
+                await env.MY_BUCKET.delete(obj.key);
+              }
+            }
+          } catch (e) {
+            console.error("Error deleting old profile pictures:", e);
+          }
+        }
+
+        const finalKey = fileName
+          ? (fileName.startsWith("profile_pictures/") ? fileName : `profile_pictures/${fileName}`)
+          : `profile_pictures/${safeUserId}.${ext}`;
 
         // Store to Cloudflare R2 bucket
         await env.MY_BUCKET.put(finalKey, bytes, {

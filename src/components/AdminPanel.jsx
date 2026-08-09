@@ -51,6 +51,10 @@ import AdminRoutineUploader from "./admin/AdminRoutineUploader.jsx";
 import AdminExamRoutineUploader from "./admin/AdminExamRoutineUploader.jsx";
 import AdminSupportTickets from "./admin/AdminSupportTickets.jsx";
 import AdminSupportSettings from "./admin/AdminSupportSettings.jsx";
+import AdminAssistantQueries from "./admin/AdminAssistantQueries.jsx";
+import AdminAssistantQA from "./admin/AdminAssistantQA.jsx";
+import AdminAssistantHistory from "./admin/AdminAssistantHistory.jsx";
+import AdminAssistantSettings from "./admin/AdminAssistantSettings.jsx";
 import { useNavigate } from "react-router-dom";
 
 const cn = (...inputs) => {
@@ -1106,33 +1110,10 @@ const AdminPanel = () => {
       )}
 
       {/* ── AI ASSISTANT ROUTES ── */}
-      {activeTab === "ai-queries" && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Assistant Queries</h2>
-          <p className="text-slate-500 dark:text-slate-400">View and manage unanswered or training queries here.</p>
-        </div>
-      )}
-
-      {activeTab === "ai-qa" && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Assistant Q&A</h2>
-          <p className="text-slate-500 dark:text-slate-400">Manage trained pairs of Questions and Answers.</p>
-        </div>
-      )}
-
-      {activeTab === "ai-history" && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Assistant Chat History</h2>
-          <p className="text-slate-500 dark:text-slate-400">View live conversation logs from all users.</p>
-        </div>
-      )}
-
-      {activeTab === "ai-settings" && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Assistant Settings</h2>
-          <p className="text-slate-500 dark:text-slate-400">Configure AI model settings, prompts, and personality.</p>
-        </div>
-      )}
+      {activeTab === "ai-queries" && <AdminAssistantQueries />}
+      {activeTab === "ai-qa" && <AdminAssistantQA />}
+      {activeTab === "ai-history" && <AdminAssistantHistory />}
+      {activeTab === "ai-settings" && <AdminAssistantSettings />}
 
       {/* ── DATABASE: Global System Reset ── */}
       {activeTab === "db-reset" && (

@@ -60,7 +60,8 @@ import {
   FileText,
   LifeBuoy,
   RefreshCw,
-  Check
+  Check,
+  Music
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -239,7 +240,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
       icon: FileSignature,
       color: "bg-violet-50 dark:bg-violet-900/20",
       iconColor: "text-violet-600",
-      href: "https://plyr.0-0-0.click/FrontPageMaker",
+      href: "https://sumanonline.com/FrontPageMaker/",
     },
     {
       id: "movies",
@@ -248,7 +249,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
       icon: Film,
       color: "bg-rose-50 dark:bg-rose-900/20",
       iconColor: "text-rose-500",
-      href: "https://movies.sumanonline.com/",
+      href: "https://cinema.sumanonline.com/",
     },
     {
       id: "anime",
@@ -257,7 +258,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
       icon: Tv2,
       color: "bg-amber-50 dark:bg-amber-900/20",
       iconColor: "text-amber-500",
-      href: "https://movies.sumanonline.com/anime/index.html",
+      href: "https://cinema.sumanonline.com/anime/",
     },
     {
       id: "games",
@@ -266,7 +267,25 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
       icon: Gamepad2,
       color: "bg-sky-50 dark:bg-sky-900/20",
       iconColor: "text-sky-500",
-      href: "https://sumanonline.com/games",
+      href: "https://games.sumanonline.com/",
+    },
+    {
+      id: "pdfeditor",
+      label: "PdfEditor",
+      desc: "Edit, merge, and manage PDF documents",
+      icon: FileText,
+      color: "bg-emerald-50 dark:bg-emerald-900/20",
+      iconColor: "text-emerald-600",
+      href: "https://sumanpdf.sumanonline.com/",
+    },
+    {
+      id: "sumanmusic",
+      label: "SumanMusic",
+      desc: "Listen to your favorite songs and music online",
+      icon: Music,
+      color: "bg-indigo-50 dark:bg-indigo-900/20",
+      iconColor: "text-indigo-600",
+      href: "https://songs.sumanonline.com/",
     },
   ];
 
@@ -844,14 +863,27 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
         )}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-5 h-[76px] shrink-0">
-          <div className="flex-1 flex items-center h-full">
+        <div className="flex items-center justify-between px-5 py-4 h-[84px] shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (hasSaved) {
+                localStorage.setItem("currentView", "dashboard");
+                window.history.replaceState(null, "", window.location.pathname);
+                window.location.reload();
+              } else {
+                onBack();
+              }
+            }}
+            className="flex-1 flex items-center h-full text-left focus:outline-none group cursor-pointer"
+            title="Go to Dashboard"
+          >
             <img
-              src={studentHubLogo}
+              src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
               alt="StudentHub Logo"
-              className="h-10 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)] transition-all hover:scale-105"
+              className="h-16 w-auto max-w-[200px] object-contain transition-transform group-hover:scale-105"
             />
-          </div>
+          </button>
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="xl:hidden p-2 -mr-2 text-slate-400 hover:text-white transition-colors"
@@ -1382,7 +1414,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                       type="submit"
                       form="settings-form"
                       disabled={loading || isUploadingPhoto}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50 shrink-0"
+                      className="hidden sm:flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50 shrink-0"
                     >
                       {loading ? <Loader inline size="sm" /> : <CheckCircle2 size={18} />}
                       <span>Save Changes</span>
@@ -1626,7 +1658,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
 
             {/* ── Attendance View ── */}
             {activeNav === "attendance" && (
-              <div className="-mt-8 -mx-4 sm:-mx-6 xl:-mx-8">
+              <div className="pt-2 -mx-4 sm:-mx-6 xl:-mx-8">
                 <Attendance onBack={() => setActiveNav("profile")} showBack={false} hideSpacing={true} classes={classes} />
               </div>
             )}
@@ -2463,6 +2495,19 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
 
 
 
+            {["profile", "academic", "preferences", "security", "all"].includes(activeNav) && (
+              <div className="sm:hidden pt-4 pb-8 flex justify-center">
+                <button
+                  type="submit"
+                  form="settings-form"
+                  disabled={loading || isUploadingPhoto}
+                  className="flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? <Loader inline size="sm" /> : <CheckCircle2 size={18} />}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            )}
           </form>
 
           {/* ── Services ── */}

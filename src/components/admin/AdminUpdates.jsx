@@ -26,7 +26,8 @@ const AdminUpdates = () => {
         type: "notification", // can be notification, statement, alert
         targetUniversity: "All",
         targetStream: "All",
-        targetSemester: "All"
+        targetSemester: "All",
+        targetSection: "All"
     });
 
     const hasRunCleanup = React.useRef(false);
@@ -115,7 +116,8 @@ const AdminUpdates = () => {
                 type: "notification",
                 targetUniversity: "All",
                 targetStream: "All",
-                targetSemester: "All"
+                targetSemester: "All",
+                targetSection: "All"
             });
         } catch (error) {
             console.error("Error saving update:", error);
@@ -133,7 +135,8 @@ const AdminUpdates = () => {
             type: update.type,
             targetUniversity: update.targetUniversity || "All",
             targetStream: update.targetStream || "All",
-            targetSemester: update.targetSemester || "All"
+            targetSemester: update.targetSemester || "All",
+            targetSection: update.targetSection || "All"
         });
         // Scroll to top of form
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -147,7 +150,8 @@ const AdminUpdates = () => {
             type: "notification",
             targetUniversity: "All",
             targetStream: "All",
-            targetSemester: "All"
+            targetSemester: "All",
+            targetSection: "All"
         });
     };
 
@@ -251,6 +255,23 @@ const AdminUpdates = () => {
                                     <option value="Other">Other</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
+                                Target Section
+                            </label>
+                            <select
+                                value={newUpdate.targetSection || "All"}
+                                onChange={(e) => setNewUpdate({ ...newUpdate, targetSection: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700 dark:text-slate-200 font-bold"
+                            >
+                                <option value="All">All Sections (1, 2, 3, 4)</option>
+                                <option value="1">Section 1 (A)</option>
+                                <option value="2">Section 2 (B)</option>
+                                <option value="3">Section 3 (C)</option>
+                                <option value="4">Section 4 (D)</option>
+                            </select>
                         </div>
 
                         <div>
@@ -389,6 +410,10 @@ const AdminUpdates = () => {
                                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-md text-[10px] font-black uppercase tracking-tight text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
                                                         <CalendarDays size={10} />
                                                         {update.targetSemester === 'All' ? 'All Semesters' : `Sem ${update.targetSemester}`}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-md text-[10px] font-black uppercase tracking-tight text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                                        <Users size={10} />
+                                                        {update.targetSection === 'All' || !update.targetSection ? 'All Sections' : `Sec ${update.targetSection}`}
                                                     </div>
                                                 </div>
 

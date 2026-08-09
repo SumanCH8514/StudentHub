@@ -47,6 +47,11 @@ import {
   Download,
   CalendarX,
   Coffee,
+  Calendar,
+  MapPin,
+  Grid,
+  List,
+  Upload,
 } from "lucide-react";
 import Uploader from "./Uploader.jsx";
 import AdminPanel from "./AdminPanel.jsx";
@@ -188,9 +193,26 @@ const Dashboard = () => {
   const [readUpdates, setReadUpdates] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [scheduledNotifyIds, setScheduledNotifyIds] = useState(new Set());
+  const [showAcademicModal, setShowAcademicModal] = useState(false);
+  const [academicData, setAcademicData] = useState({
+    university: "SVU",
+    customUniversity: "",
+    stream: "B.Tech",
+    customStream: "",
+    semester: "1",
+    section: "1",
+    rollNumber: "",
+  });
+  const [savingAcademic, setSavingAcademic] = useState(false);
+  const [academicError, setAcademicError] = useState("");
+  const [showWeeklyRoutineModal, setShowWeeklyRoutineModal] = useState(false);
+  const [selectedRoutineDay, setSelectedRoutineDay] = useState("Monday");
+  const [routineViewMode, setRoutineViewMode] = useState("grid");
+
+  const [showPwaModal, setShowPwaModal] = useState(false);
 
   useEffect(() => {
-    if (showUploader) {
+    if (showUploader || showAcademicModal || showWeeklyRoutineModal || showPwaModal || isSidebarOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -198,16 +220,18 @@ const Dashboard = () => {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showUploader]);
+  }, [showUploader, showAcademicModal, showWeeklyRoutineModal, showPwaModal, isSidebarOpen]);
 
-  // PWA Install Prompt Logic
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
+      window.deferredPwaPrompt = e;
     };
+
+    if (window.deferredPwaPrompt) {
+      setDeferredPrompt(window.deferredPwaPrompt);
+    }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
@@ -217,18 +241,21 @@ const Dashboard = () => {
   }, []);
 
   const handleInstallApp = async () => {
-    if (!deferredPrompt) {
-      // Fallback: Just open the download page if prompt not available
-      window.open("https://studenthub.sumanonline.com/", "_blank");
-      return;
+    setIsSidebarOpen(false);
+    const activePrompt = deferredPrompt || window.deferredPwaPrompt;
+    if (activePrompt) {
+      try {
+        activePrompt.prompt();
+        const { outcome } = await activePrompt.userChoice;
+        if (outcome === "accepted") {
+          setDeferredPrompt(null);
+          window.deferredPwaPrompt = null;
+        }
+        return;
+      } catch (err) {
+      }
     }
-    // Show the install prompt
-    deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-    // We've used the prompt, and can't use it again, throw it away
-    setDeferredPrompt(null);
+    setShowPwaModal(true);
   };
 
   // Deep linking for settings
@@ -430,6 +457,24 @@ const Dashboard = () => {
           setUserPhoto(data.photoBase64 || null);
           setFetchShared(data.fetchShared ?? false);
 
+          const isBlankVal = (val) => !val || String(val).trim() === "" || String(val).trim() === "undefined" || String(val).trim() === "null";
+          const hasAllAcademicFields = !isBlankVal(data.university) && !isBlankVal(data.stream) && !isBlankVal(data.semester) && !isBlankVal(data.section);
+
+          if (!hasAllAcademicFields && data.academicProfileCompleted !== true) {
+            setAcademicData({
+              university: isBlankVal(data.university) ? "SVU" : data.university,
+              customUniversity: data.customUniversity || "",
+              stream: isBlankVal(data.stream) ? "B.Tech" : data.stream,
+              customStream: data.customStream || "",
+              semester: isBlankVal(data.semester) ? "1" : String(data.semester),
+              section: isBlankVal(data.section) ? "1" : String(data.section),
+              rollNumber: data.rollNo || data.rollNumber || "",
+            });
+            if (!sessionStorage.getItem("studenthub_skipped_academic_modal")) {
+              setShowAcademicModal(true);
+            }
+          }
+
           // Apply user theme preference
           const isDark =
             data.themePreference === "dark" ||
@@ -516,12 +561,14 @@ const Dashboard = () => {
                 const targetUni = update.targetUniversity || "All";
                 const targetStream = update.targetStream || "All";
                 const targetSem = update.targetSemester || "All";
+                const targetSec = update.targetSection || "All";
 
                 const matchesUni = targetUni === "All" || targetUni === data.university;
                 const matchesStream = targetStream === "All" || targetStream === data.stream;
                 const matchesSem = targetSem === "All" || targetSem === data.semester;
+                const matchesSec = targetSec === "All" || targetSec === (data.section || "").toString();
 
-                return matchesUni && matchesStream && matchesSem;
+                return matchesUni && matchesStream && matchesSem && matchesSec;
               });
               setSystemUpdates((prev) => {
                 // Keep only the today's exam updates (which we preserve) and replace the rest with new fetched
@@ -595,6 +642,7 @@ const Dashboard = () => {
           }
         } else {
           setUserName(user.displayName || "Student");
+          setShowAcademicModal(true);
           setLoading(false);
         }
       } catch (error) {
@@ -625,6 +673,80 @@ const Dashboard = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (view === "dashboard" && userData && !loading) {
+      const isBlankVal = (val) => !val || String(val).trim() === "" || String(val).trim() === "undefined" || String(val).trim() === "null";
+      const hasAllAcademicFields = !isBlankVal(userData.university) && !isBlankVal(userData.stream) && !isBlankVal(userData.semester) && !isBlankVal(userData.section);
+
+      if (!hasAllAcademicFields && userData.academicProfileCompleted !== true) {
+        if (!sessionStorage.getItem("studenthub_skipped_academic_modal")) {
+          setAcademicData({
+            university: isBlankVal(userData.university) ? "SVU" : userData.university,
+            customUniversity: userData.customUniversity || "",
+            stream: isBlankVal(userData.stream) ? "B.Tech" : userData.stream,
+            customStream: userData.customStream || "",
+            semester: isBlankVal(userData.semester) ? "1" : String(userData.semester),
+            section: isBlankVal(userData.section) ? "1" : String(userData.section),
+            rollNumber: userData.rollNo || userData.rollNumber || "",
+          });
+          setShowAcademicModal(true);
+        }
+      } else {
+        setShowAcademicModal(false);
+      }
+    }
+  }, [view, userData, loading]);
+
+  const handleCloseAcademicModal = () => {
+    sessionStorage.setItem("studenthub_skipped_academic_modal", "true");
+    setShowAcademicModal(false);
+  };
+
+  const handleSaveAcademicProfile = async (e) => {
+    e.preventDefault();
+    setAcademicError("");
+
+    const finalUni = academicData.university === "Others" ? academicData.customUniversity.trim() : academicData.university;
+    const finalStr = academicData.stream === "Other" ? academicData.customStream.trim() : academicData.stream;
+
+    if (!finalUni) {
+      setAcademicError("Please select or enter your University / College.");
+      return;
+    }
+    if (!finalStr) {
+      setAcademicError("Please select or enter your Stream / Course.");
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setSavingAcademic(true);
+    try {
+      const payload = {
+        university: finalUni,
+        customUniversity: academicData.customUniversity,
+        stream: finalStr,
+        customStream: academicData.customStream,
+        semester: academicData.semester,
+        section: academicData.section,
+        rollNo: academicData.rollNumber,
+        rollNumber: academicData.rollNumber,
+        academicProfileCompleted: true,
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+      setUserData(prev => ({ ...(prev || {}), ...payload }));
+      setShowAcademicModal(false);
+    } catch (err) {
+      console.error("Failed to save Academic Profile:", err);
+      setAcademicError("Failed to save profile. Please try again.");
+    } finally {
+      setSavingAcademic(false);
+    }
+  };
 
   // --- Derived Data for UI & Notifications ---
   // 1. Compute active holidays for the currently selected date
@@ -958,24 +1080,26 @@ const Dashboard = () => {
             isSidebarOpen ? "translate-x-0" : "translate-x-full",
           )}
         >
-          {/* Mesh background decoration */}
+
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute top-[-20%] left-[-20%] w-[280px] h-[280px] bg-indigo-300/20 rounded-full blur-[80px]" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[200px] h-[200px] bg-purple-300/20 rounded-full blur-[60px]" />
           </div>
 
-          {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-8 pt-10 pb-6">
-            <div className="flex-1 text-center">
-              <h2 className="text-2xl font-black tracking-tight text-[#1e1b4b] dark:text-white">
-                Student <span className="text-indigo-600 dark:text-indigo-400">Hub</span>
-              </h2>
+          <div className="relative z-10 flex items-center justify-between px-6 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+            <div className="flex-1 flex justify-center -ml-5 -mt-2">
+              <img
+                src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
+                alt="StudentHub Logo"
+                className="h-16 sm:h-20 w-auto max-w-[220px] object-contain"
+              />
             </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="text-slate-400 hover:text-slate-700 transition-colors p-1 ml-4"
+              className="absolute top-6 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 shrink-0"
+              title="Close Menu"
             >
-              <X size={22} />
+              <X size={20} />
             </button>
           </div>
 
@@ -1145,42 +1269,42 @@ const Dashboard = () => {
 
             {/* QUICK ACTIONS */}
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4 pl-1">Quick Actions</p>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => handleOpenSettings("holidays")}
-                className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-800/50 rounded-full hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-800/50 rounded-2xl hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all active:scale-95"
               >
-                <div className="w-5 h-5 bg-rose-400 rounded-md flex items-center justify-center">
+                <div className="w-5 h-5 bg-rose-400 rounded-md flex items-center justify-center shrink-0">
                   <Clock size={11} className="text-white" />
                 </div>
-                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200">Calendar</span>
+                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200 truncate">Calendar</span>
               </button>
               <button
                 onClick={() => handleOpenSettings("results")}
-                className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 rounded-full hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 rounded-2xl hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-all active:scale-95"
               >
-                <div className="w-5 h-5 bg-sky-400 rounded-md flex items-center justify-center">
+                <div className="w-5 h-5 bg-sky-400 rounded-md flex items-center justify-center shrink-0">
                   <BookOpen size={11} className="text-white" />
                 </div>
-                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200">Grades</span>
+                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200 truncate">Grades</span>
               </button>
               <button
                 onClick={() => handleOpenSettings("chat")}
-                className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 rounded-2xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all active:scale-95"
               >
-                <div className="w-5 h-5 bg-amber-400 rounded-md flex items-center justify-center">
+                <div className="w-5 h-5 bg-amber-400 rounded-md flex items-center justify-center shrink-0">
                   <Hash size={11} className="text-white" />
                 </div>
-                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200">Messages</span>
+                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200 truncate">Messages</span>
               </button>
               <button
                 onClick={handleInstallApp}
-                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
               >
-                <div className="w-5 h-5 bg-indigo-500 rounded-md flex items-center justify-center">
+                <div className="w-5 h-5 bg-indigo-500 rounded-md flex items-center justify-center shrink-0">
                   <Download size={11} className="text-white" />
                 </div>
-                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200">App Download</span>
+                <span className="text-[12px] font-black text-[#1e1b4b] dark:text-slate-200 truncate">App Download</span>
               </button>
             </div>
           </div>
@@ -1199,15 +1323,14 @@ const Dashboard = () => {
 
       <div className="relative z-10 w-full px-4 py-6 sm:px-6 md:px-10 lg:px-16 xl:px-24">
         {/* Floating Pill Header */}
-        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/70 dark:bg-slate-800/80 backdrop-blur-xl p-2.5 sm:p-4 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-white/80 dark:border-slate-700">
+        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-2.5 sm:px-6 sm:py-4 rounded-full sm:rounded-[2.5rem] shadow-xl sm:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
           {/* Left: Branding */}
-          <div className="flex items-center gap-2 sm:gap-3 pl-1 sm:pl-4 shrink-0">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-[0.85rem] sm:rounded-[1.25rem] overflow-hidden shadow-md shrink-0">
+          <div className="flex items-center gap-3 pl-1 sm:pl-2 shrink-0">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-[0.9rem] sm:rounded-[1.1rem] overflow-hidden shadow-md shrink-0 flex items-center justify-center">
               <img src={favLogo} alt="StudentHub Logo" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[24px] sm:text-[28px] font-black tracking-tighter text-[#1e1b4b] dark:text-white leading-none flex items-baseline">
-              Student
-              <span className="text-indigo-600 dark:text-indigo-400">Hub</span>
+            <div className="text-[24px] sm:text-[30px] font-black tracking-tighter text-[#1e1b4b] dark:text-white leading-none flex items-baseline">
+              Student<span className="text-indigo-600 dark:text-indigo-400">Hub</span>
             </div>
           </div>
 
@@ -1248,7 +1371,7 @@ const Dashboard = () => {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2 sm:gap-4 pr-1 sm:pr-2">
+          <div className="flex items-center gap-2 sm:gap-3 pr-0.5">
             {userRole === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
@@ -1270,12 +1393,12 @@ const Dashboard = () => {
             <div className="relative">
               <button
                 onClick={() => { setIsNotificationsOpen(!isNotificationsOpen); setIsProfileMenuOpen(false); }}
-                className="p-2 sm:p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600 shrink-0 relative"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-300 hover:text-indigo-600 flex items-center justify-center transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-700/60 shrink-0 relative"
                 title="Notifications"
               >
-                <Bell size={20} className="w-5 h-5 sm:w-5 sm:h-5" />
+                <Bell size={18} className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-700 rounded-full animate-pulse" />
+                  <span className="absolute top-2 right-2 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full animate-pulse" />
                 )}
               </button>
 
@@ -1285,7 +1408,7 @@ const Dashboard = () => {
                     className="fixed inset-0 z-[9998]"
                     onClick={() => setIsNotificationsOpen(false)}
                   />
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-[18px] sm:w-84 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-100 dark:border-slate-700 z-[9999] overflow-hidden animate-slide-in-down flex flex-col max-h-[420px]">
+                  <div className="fixed sm:absolute top-20 sm:top-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 sm:mt-[18px] w-[calc(100vw-32px)] max-w-sm sm:w-84 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-100 dark:border-slate-700 z-[9999] overflow-hidden animate-slide-in-down flex flex-col max-h-[420px]">
                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-slate-800 dark:text-white text-[14px]">Notifications</h3>
@@ -1367,12 +1490,22 @@ const Dashboard = () => {
               )}
             </div>
 
+            {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="flex p-2 sm:p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600 shrink-0"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-300 hover:text-indigo-600 flex items-center justify-center transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-700/60 shrink-0"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {isDarkMode ? <Sun size={20} className="w-5 h-5 sm:w-5 sm:h-5" /> : <Moon size={20} className="w-5 h-5 sm:w-5 sm:h-5" />}
+              {isDarkMode ? <Sun size={18} className="w-[18px] h-[18px] sm:w-5 sm:h-5" /> : <Moon size={18} className="w-[18px] h-[18px] sm:w-5 sm:h-5" />}
+            </button>
+
+            {/* Mobile Hamburger Menu Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="sm:hidden w-9 h-9 rounded-full bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-300 hover:text-indigo-600 flex items-center justify-center transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-700/60 shrink-0"
+              title="Menu"
+            >
+              <Menu size={18} className="w-[18px] h-[18px]" />
             </button>
             <button
               onClick={() => { setView("settings"); setIsNotificationsOpen(false); setIsProfileMenuOpen(false); }}
@@ -1956,10 +2089,14 @@ const Dashboard = () => {
                 Classes / Week
               </p>
               <button
-                onClick={() => setView("settings")}
-                className="w-full py-3 bg-[#0f172a] hover:bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                onClick={() => {
+                  setSelectedRoutineDay(selectedDayName || "Monday");
+                  setShowWeeklyRoutineModal(true);
+                }}
+                className="w-full py-3.5 bg-[#0f172a] hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                Manage Routine
+                <Calendar size={16} />
+                <span>Show Weekly Routine</span>
               </button>
             </div>
 
@@ -1970,9 +2107,9 @@ const Dashboard = () => {
         {/* Footer Section */}
         <footer className="mt-12 sm:mt-16 pb-2">
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-[2.5rem] px-8 sm:px-12 pt-8 sm:pt-10 pb-6 sm:pb-8 shadow-2xl shadow-slate-900/5 dark:shadow-none mb-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-10 lg:gap-12">
 
-              <div className="lg:col-span-2 flex flex-col items-start gap-4">
+              <div className="col-span-2 md:col-span-2 lg:col-span-2 flex flex-col items-start gap-4">
                 <div className="transition-transform hover:scale-105 duration-300">
                   <img
                     src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
@@ -2025,7 +2162,7 @@ const Dashboard = () => {
                 </button>
               </div>
 
-              <div className="flex flex-col items-start gap-3">
+              <div className="col-span-2 sm:col-span-1 flex flex-col items-start gap-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">Legal & Policies</h4>
                 <button onClick={() => window.open("/privacy-policy", "_blank")} className="group text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:translate-x-1 text-left flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-indigo-500 transition-colors shrink-0" />
@@ -2044,7 +2181,7 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-center justify-center text-center gap-2 pt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <span className="font-black uppercase tracking-wider">&copy; {new Date().getFullYear()} StudentHub Platform</span>
               <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
-              <span>
+              <span className="whitespace-nowrap text-[9.5px] sm:text-xs">
                 Designed & Developed with ❤️ for Students by{" "}
                 <a
                   href="https://sumanonline.com"
@@ -2059,6 +2196,604 @@ const Dashboard = () => {
           </div>
         </footer>
       </div>
+
+      {showAcademicModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="relative px-6 py-5 sm:px-8 sm:py-6 bg-[#0f172a] dark:bg-slate-950 text-white overflow-hidden shrink-0 border-b border-slate-800">
+              <div className="absolute -top-12 -left-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -right-10 w-44 h-44 bg-purple-400/20 rounded-full blur-2xl pointer-events-none" />
+
+              <button
+                type="button"
+                onClick={handleCloseAcademicModal}
+                className="absolute top-4 right-4 p-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition-all active:scale-95 border border-white/20 backdrop-blur-md"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] font-black uppercase tracking-widest text-indigo-100">
+                  <Sparkles size={12} className="text-amber-300" />
+                  <span>Academic Setup</span>
+                </span>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-white shrink-0 shadow-lg shadow-black/10">
+                  <GraduationCap size={28} />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-snug">
+                    Complete Academic Profile
+                  </h3>
+                  <p className="text-xs sm:text-sm font-medium text-indigo-100/90 mt-1 leading-relaxed">
+                    Set up your college details for automatic routine sync, exam alerts & AI assistant context.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveAcademicProfile} className="p-5 sm:p-7 overflow-y-auto space-y-4 sm:space-y-5 custom-scrollbar bg-white dark:bg-slate-900">
+              {academicError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-top-1">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span>{academicError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <BookOpen size={14} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>University / College *</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={academicData.university}
+                    onChange={(e) => setAcademicData({ ...academicData, university: e.target.value })}
+                    className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all appearance-none cursor-pointer pr-10 shadow-xs"
+                  >
+                    <option value="SVU" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">SVU (Swami Vivekananda University)</option>
+                    <option value="Regent" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Regent Education & Research Foundation</option>
+                    <option value="Others" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Others (Custom Institution)</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              {academicData.university === "Others" && (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Custom Institution Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={academicData.customUniversity}
+                    onChange={(e) => setAcademicData({ ...academicData, customUniversity: e.target.value })}
+                    placeholder="Enter full college / university name"
+                    className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-xs"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <GraduationCap size={14} className="text-purple-600 dark:text-purple-400" />
+                  <span>Stream / Course *</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={academicData.stream}
+                    onChange={(e) => setAcademicData({ ...academicData, stream: e.target.value })}
+                    className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all appearance-none cursor-pointer pr-10 shadow-xs"
+                  >
+                    <option value="B.Tech" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">B.Tech (Engineering)</option>
+                    <option value="BCA" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">BCA (Computer Applications)</option>
+                    <option value="ANCS" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">ANCS</option>
+                    <option value="DIPLOMA" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">DIPLOMA</option>
+                    <option value="Other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Other Course</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              {academicData.stream === "Other" && (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Custom Course Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={academicData.customStream}
+                    onChange={(e) => setAcademicData({ ...academicData, customStream: e.target.value })}
+                    placeholder="Enter your stream / course name"
+                    className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-xs"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <Clock size={14} className="text-amber-500" />
+                    <span>Semester *</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={academicData.semester}
+                      onChange={(e) => setAcademicData({ ...academicData, semester: e.target.value })}
+                      className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all appearance-none cursor-pointer pr-9 shadow-xs"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                        <option key={n} value={n.toString()} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Sem {n}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={14} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <Users size={14} className="text-emerald-500" />
+                    <span>Section *</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={academicData.section}
+                      onChange={(e) => setAcademicData({ ...academicData, section: e.target.value })}
+                      className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all appearance-none cursor-pointer pr-9 shadow-xs"
+                    >
+                      {(academicData.stream === "B.Tech" ? [1, 2, 3, 4, 5, 6, 7, 8] : [1, 2, 3, 4]).map((n) => (
+                        <option key={n} value={n.toString()} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Sec {n}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={14} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <Hash size={14} className="text-sky-500" />
+                  <span>Roll / Registration Number</span>
+                </label>
+                <input
+                  type="text"
+                  value={academicData.rollNumber}
+                  onChange={(e) => setAcademicData({ ...academicData, rollNumber: e.target.value })}
+                  placeholder="e.g. 406 or 202401928"
+                  className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-xs"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={handleCloseAcademicModal}
+                  className="px-4 py-3 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all active:scale-95"
+                >
+                  Skip for Now
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingAcademic}
+                  className="px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-xl shadow-indigo-600/30 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {savingAcademic ? (
+                    <span>Saving Profile...</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} />
+                      <span>Save & Complete Profile</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showWeeklyRoutineModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-1 sm:p-3 bg-slate-950/85 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="w-full max-w-6xl h-[92vh] sm:h-[88vh] bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="relative px-4 py-3 sm:px-6 sm:py-3.5 bg-[#0f172a] dark:bg-slate-950 text-white overflow-hidden shrink-0 border-b border-slate-800">
+              <div className="absolute -top-12 -left-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -right-10 w-44 h-44 bg-purple-400/20 rounded-full blur-2xl pointer-events-none" />
+
+              <button
+                type="button"
+                onClick={() => setShowWeeklyRoutineModal(false)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-white/15 hover:bg-white/25 text-white transition-all active:scale-95 border border-white/20 backdrop-blur-md"
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left pr-8 sm:pr-10">
+                <div className="flex flex-col items-center sm:items-start">
+                  <div className="flex items-center gap-1.5 mb-1 justify-center sm:justify-start">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[9px] font-black uppercase tracking-widest text-indigo-100">
+                      <Calendar size={10} className="text-amber-300" />
+                      <span>
+                        {userData?.university
+                          ? `${userData.university.split('(')[0].trim()} Timetable Matrix`
+                          : 'Academic Timetable Matrix'}
+                      </span>
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight">
+                    Weekly Class Routine
+                  </h3>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/20">
+                  <button
+                    type="button"
+                    onClick={() => setRoutineViewMode("grid")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-black transition-all active:scale-95",
+                      routineViewMode === "grid"
+                        ? "bg-white text-indigo-900 shadow-md"
+                        : "text-white/80 hover:text-white"
+                    )}
+                  >
+                    <Grid size={13} />
+                    <span>Traditional Grid</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoutineViewMode("list")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-black transition-all active:scale-95",
+                      routineViewMode === "list"
+                        ? "bg-white text-indigo-900 shadow-md"
+                        : "text-white/80 hover:text-white"
+                    )}
+                  >
+                    <List size={13} />
+                    <span>List View</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {routineViewMode === "grid" ? (
+              <div className="p-1.5 sm:p-3 overflow-auto custom-scrollbar flex-1 bg-white dark:bg-slate-900 flex flex-col justify-center">
+                <div className="min-w-[850px] border-2 border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden shadow-xs">
+                  <div className="bg-[#dbeafe] dark:bg-slate-800 text-slate-900 dark:text-slate-100 py-1.5 px-3 text-center font-black uppercase text-xs tracking-wider border-b-2 border-slate-300 dark:border-slate-700">
+                    {userData?.stream || 'BCA'} - {userData?.semester ? `SEM ${userData.semester}` : 'SEM VII'}, SECTION - {userData?.section || 'IV'}
+                  </div>
+
+                  <table className="w-full text-center border-collapse text-[11px] leading-tight">
+                    <thead>
+                      <tr className="bg-sky-200 dark:bg-sky-950/80 text-sky-950 dark:text-sky-100 font-bold border-b border-slate-300 dark:border-slate-700">
+                        <th className="py-1 px-1.5 border-r border-slate-300 dark:border-slate-700 w-24 text-center uppercase tracking-wider text-[10px]">
+                          DAYS / TIME
+                        </th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 w-20 text-center text-rose-700 dark:text-rose-400 text-[9px] uppercase font-black">
+                          FIELD
+                        </th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 font-bold text-[10px]">10:00 -10:50 AM</th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 font-bold text-[10px]">11:00 AM - 01:00 PM</th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 font-black w-20 uppercase tracking-widest text-[9px]">
+                          1:20 - 2:00 PM
+                        </th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 font-bold text-[10px]">2:00 - 2:50 PM</th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 font-bold text-[10px]">2:50 - 3:40 PM</th>
+                        <th className="py-1 px-1 border-r border-slate-300 dark:border-slate-700 font-bold text-[10px]">3:40 - 4:30 PM</th>
+                        <th className="py-1 px-1 font-bold text-[10px]">4:30 - 5:20 PM</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"].map((dayName, dayIdx) => {
+                        const slots = [
+                          "10:00",
+                          "11:00",
+                          "lunch",
+                          "2:00",
+                          "2:50",
+                          "3:40",
+                          "4:30"
+                        ];
+
+                        const dayClasses = classes.filter(c => c.day?.toUpperCase() === dayName);
+
+                        const getClassForSlot = (slotKey) => {
+                          if (slotKey === "lunch") return null;
+                          return dayClasses.find(c => {
+                            const cTime = (c.time || c.startTime || "").toLowerCase();
+                            if (slotKey === "10:00") return cTime.includes("10:00") || cTime.includes("10:50");
+                            if (slotKey === "11:00") return cTime.includes("11:00") || cTime.includes("12:00") || cTime.includes("1:00");
+                            if (slotKey === "2:00") return cTime.includes("2:00") || cTime.includes("14:00");
+                            if (slotKey === "2:50") return cTime.includes("2:50") || cTime.includes("14:50");
+                            if (slotKey === "3:40") return cTime.includes("3:40") || cTime.includes("15:40");
+                            if (slotKey === "4:30") return cTime.includes("4:30") || cTime.includes("16:30");
+                            return false;
+                          });
+                        };
+
+                        return (
+                          <React.Fragment key={dayName}>
+                            <tr className="border-t border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+                              <td
+                                rowSpan={3}
+                                className="py-1 px-1 bg-amber-100 dark:bg-amber-950/60 text-amber-950 dark:text-amber-200 font-black text-[10px] border-r border-slate-300 dark:border-slate-700 align-middle uppercase"
+                              >
+                                {dayName}
+                              </td>
+                              <td className="py-0.5 px-1 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 font-bold text-[9px] uppercase border-r border-b border-slate-300 dark:border-slate-700">
+                                Subject
+                              </td>
+
+                              {slots.map((slotKey, sIdx) => {
+                                if (slotKey === "lunch") {
+                                  if (dayIdx === 0) {
+                                    return (
+                                      <td
+                                        key="lunch-cell"
+                                        rowSpan={18}
+                                        className="bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 font-black text-[9px] py-1 uppercase border-r border-slate-300 dark:border-slate-700 align-middle tracking-widest text-center"
+                                      >
+                                        <div className="whitespace-pre-line font-black leading-snug">
+                                          L U N C H<br />B R E A K
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+                                  return null;
+                                }
+
+                                const cls = getClassForSlot(slotKey);
+                                return (
+                                  <td
+                                    key={sIdx}
+                                    className="py-0.5 px-1 font-bold text-slate-900 dark:text-white border-r border-b border-slate-300 dark:border-slate-700 text-[10px] min-w-[95px] truncate"
+                                  >
+                                    {cls ? (cls.subject || cls.name) : ""}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+
+                            <tr className="bg-white dark:bg-slate-900">
+                              <td className="py-0.5 px-1 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 font-bold text-[9px] uppercase border-r border-b border-slate-300 dark:border-slate-700">
+                                Faculty Name
+                              </td>
+                              {slots.map((slotKey, sIdx) => {
+                                if (slotKey === "lunch") return null;
+                                const cls = getClassForSlot(slotKey);
+                                return (
+                                  <td
+                                    key={sIdx}
+                                    className="py-0.5 px-1 text-[9px] font-semibold text-slate-700 dark:text-slate-300 border-r border-b border-slate-300 dark:border-slate-700 min-w-[95px] truncate"
+                                  >
+                                    {cls ? (cls.teacher || cls.instructor || "") : ""}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+
+                            <tr className="bg-white dark:bg-slate-900 border-b-2 border-slate-300 dark:border-slate-700">
+                              <td className="py-0.5 px-1 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 font-bold text-[9px] uppercase border-r border-slate-300 dark:border-slate-700">
+                                Room No.
+                              </td>
+                              {slots.map((slotKey, sIdx) => {
+                                if (slotKey === "lunch") return null;
+                                const cls = getClassForSlot(slotKey);
+                                return (
+                                  <td
+                                    key={sIdx}
+                                    className="py-0.5 px-1 text-[9px] font-semibold text-slate-600 dark:text-slate-400 border-r border-slate-300 dark:border-slate-700 min-w-[95px] truncate"
+                                  >
+                                    {cls ? (cls.room || cls.location || "") : ""}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 flex items-center gap-2 overflow-x-auto custom-scrollbar shrink-0">
+                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((dayName) => {
+                    const dayCount = classes.filter(c => c.day?.toLowerCase() === dayName.toLowerCase()).length;
+                    const isSelected = selectedRoutineDay.toLowerCase() === dayName.toLowerCase();
+                    const isToday = selectedDayName.toLowerCase() === dayName.toLowerCase();
+
+                    return (
+                      <button
+                        key={dayName}
+                        onClick={() => setSelectedRoutineDay(dayName)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 border",
+                          isSelected
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
+                            : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        )}
+                      >
+                        <span>{dayName.slice(0, 3)}</span>
+                        {isToday && (
+                          <span className={cn("w-1.5 h-1.5 rounded-full animate-ping", isSelected ? "bg-amber-300" : "bg-indigo-500")} />
+                        )}
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                          isSelected ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                        )}>
+                          {dayCount}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="p-4 sm:p-5 overflow-y-auto space-y-3 custom-scrollbar flex-1 bg-white dark:bg-slate-900">
+                  {(() => {
+                    const dayClasses = classes
+                      .filter(c => c.day?.toLowerCase() === selectedRoutineDay.toLowerCase())
+                      .sort((a, b) => {
+                        const timeA = a.time || a.startTime || "";
+                        const timeB = b.time || b.startTime || "";
+                        return timeA.localeCompare(timeB);
+                      });
+
+                    if (dayClasses.length === 0) {
+                      return (
+                        <div className="h-full py-10 px-4 flex flex-col items-center justify-center text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center text-indigo-500 dark:text-indigo-400 mb-3 shadow-inner">
+                            <Coffee size={28} />
+                          </div>
+                          <h4 className="text-base font-black text-slate-800 dark:text-slate-100 mb-1">
+                            No Classes on {selectedRoutineDay}
+                          </h4>
+                          <p className="text-xs font-medium text-slate-400 max-w-xs">
+                            Enjoy your free time! No lectures or labs scheduled for this day.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return dayClasses.map((c, idx) => (
+                      <div
+                        key={c.id || idx}
+                        className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800/80 transition-all duration-300 shadow-xs hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900/60 group"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 font-bold group-hover:scale-105 transition-transform">
+                              <BookOpen size={18} />
+                            </div>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+                                {c.subject || c.name || "Class"}
+                              </h4>
+                              {c.code && (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                  {c.code}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold shrink-0 self-start sm:self-auto">
+                            <Clock size={12} className="text-indigo-500" />
+                            <span>{c.time || (c.startTime ? `${c.startTime} - ${c.endTime || ''}` : "Scheduled")}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+                          {(c.teacher || c.instructor) && (
+                            <div className="flex items-center gap-1">
+                              <User size={13} className="text-purple-500" />
+                              <span>{c.teacher || c.instructor}</span>
+                            </div>
+                          )}
+                          {(c.room || c.location) && (
+                            <div className="flex items-center gap-1">
+                              <MapPin size={13} className="text-emerald-500" />
+                              <span>Room: {c.room || c.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </>
+            )}
+
+            <div className="px-4 py-2.5 sm:px-6 sm:py-3 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Not your Routine?
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWeeklyRoutineModal(false);
+                  setShowUploader(true);
+                  window.location.hash = "upload-routine";
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0f172a] hover:bg-indigo-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <Upload size={13} />
+                <span>Upload your own Routine</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPwaModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[2rem] shadow-2xl p-6 sm:p-8 relative text-slate-800 dark:text-white flex flex-col items-center text-center">
+            <button
+              type="button"
+              onClick={() => setShowPwaModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white mb-4 shadow-lg shadow-indigo-500/25">
+              <Download size={28} />
+            </div>
+
+            <h3 className="text-xl font-black tracking-tight mb-2">
+              Install StudentHub App
+            </h3>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              Install StudentHub on your mobile device or desktop for instant access, offline routine viewing, and class notifications.
+            </p>
+
+            <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 mb-6 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  Tap your browser menu or <span className="font-bold text-indigo-600 dark:text-indigo-400">Share icon</span>.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">2</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  Select <span className="font-bold text-indigo-600 dark:text-indigo-400">"Install App"</span> or <span className="font-bold text-indigo-600 dark:text-indigo-400">"Add to Home Screen"</span>.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowPwaModal(false);
+                const activePrompt = deferredPrompt || window.deferredPwaPrompt;
+                if (activePrompt) {
+                  activePrompt.prompt();
+                }
+              }}
+              className="w-full py-3.5 bg-[#0f172a] hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md"
+            >
+              <Download size={16} />
+              <span>Install Now</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
