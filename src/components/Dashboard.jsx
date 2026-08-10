@@ -1723,7 +1723,7 @@ const Dashboard = () => {
                           <div className="relative z-10 w-full sm:px-6 md:px-10 lg:px-14 flex flex-col min-w-0">
 
                             {/* Top Badge Row */}
-                            <div className="flex items-center gap-3 mb-4 md:mb-5">
+                            <div className="flex items-center justify-between gap-2 mb-4 md:mb-5">
                               {isLive ? (
                                 <div className="flex items-center gap-2 px-3 py-1 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-full shadow-sm">
                                   <span className="relative flex h-2 w-2">
@@ -1739,6 +1739,14 @@ const Dashboard = () => {
                                   {cls.status === "past" ? "Past Class" : "Upcoming Next"}
                                 </h3>
                               )}
+
+                              {/* Room badge in top row on mobile only */}
+                              <div className="sm:hidden flex items-center gap-1.5 px-3 py-1 bg-white/50 dark:bg-slate-800/50 border border-white/50 dark:border-slate-700/50 rounded-full text-slate-800 dark:text-indigo-200 shrink-0">
+                                <MapPin size={11} className="text-rose-500 dark:text-rose-400 shrink-0" />
+                                <span className="font-extrabold text-[10px] uppercase tracking-wider truncate max-w-[130px]">
+                                  {cls.room || cls.location || cls.roomNo ? `Room: ${cls.room || cls.location || cls.roomNo}` : "Room: N/A"}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Subject Title with Gradient Text / Size explicitly requested as 18px mobile */}
@@ -1770,7 +1778,7 @@ const Dashboard = () => {
 
                               <div className="hidden sm:block w-[1px] h-8 bg-slate-800/20 dark:bg-white/20 transition-colors duration-500 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"></div>
 
-                              <div className="flex items-center gap-3 min-w-0 group-hover:translate-x-1 transition-transform duration-500 ease-out delay-100">
+                              <div className="hidden sm:flex items-center gap-3 min-w-0 group-hover:translate-x-1 transition-transform duration-500 ease-out delay-100">
                                 <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-rose-50 text-rose-500 dark:bg-rose-500/20 dark:text-rose-400 group-hover:bg-rose-100 dark:group-hover:bg-rose-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-rose-400'}`}>
                                   <MapPin size={16} className="shrink-0 md:w-5 md:h-5" />
                                 </div>
