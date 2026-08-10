@@ -12,7 +12,12 @@ export default defineConfig({
       name: "rewrite-routine",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if ((req.url === "/routine" || req.url.startsWith("/routine/")) && !req.url.includes(".")) {
+          const rawUrl = req.url || "";
+          const pathname = rawUrl.split("?")[0];
+          const appRoutes = ["/privacy-policy", "/terms-of-service", "/about-us", "/about", "/admin"];
+          const isAppRoute = appRoutes.some((r) => pathname === r || pathname.startsWith(r + "/") || pathname.startsWith(r));
+
+          if ((pathname === "/routine" || pathname.startsWith("/routine/") || isAppRoute) && !pathname.includes(".")) {
             req.url = "/routine/index.html";
           }
           next();
