@@ -2208,11 +2208,11 @@ const Dashboard = () => {
 
               <div className="col-span-2 sm:col-span-1 flex flex-col items-start gap-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">Legal & Policies</h4>
-                <button onClick={() => window.open("/routine/privacy-policy", "_blank")} className="group text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:translate-x-1 text-left flex items-center gap-2">
+                <button onClick={() => window.open("/privacy-policy", "_blank")} className="group text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:translate-x-1 text-left flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-indigo-500 transition-colors shrink-0" />
                   <span>Privacy Policy</span>
                 </button>
-                <button onClick={() => window.open("/routine/terms-of-service", "_blank")} className="group text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:translate-x-1 text-left flex items-center gap-2">
+                <button onClick={() => window.open("/terms-of-service", "_blank")} className="group text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:translate-x-1 text-left flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-indigo-500 transition-colors shrink-0" />
                   <span>Terms of Service</span>
                 </button>

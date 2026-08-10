@@ -49,7 +49,6 @@ if (typeof window !== 'undefined') {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter
-      basename="/routine"
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true

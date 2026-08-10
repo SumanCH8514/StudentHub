@@ -97,11 +97,23 @@ function App() {
     <React.Suspense fallback={<Loader />}>
       <Routes>
         <Route path="/" element={user ? <Dashboard /> : <Auth />} />
+        <Route path="/routine" element={user ? <Dashboard /> : <Auth />} />
+        <Route path="/routine/*" element={user ? <Dashboard /> : <Auth />} />
+
         <Route path="/admin/*" element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
+        <Route path="/routine/admin/*" element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
+
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/routine/privacy-policy" element={<PrivacyPolicy />} />
+
         <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/routine/terms-of-service" element={<TermsOfService />} />
+
         <Route path="/about-us" element={<AboutUs />} />
+        <Route path="/routine/about-us" element={<AboutUs />} />
         <Route path="/about" element={<AboutUs />} />
+        <Route path="/routine/about" element={<AboutUs />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </React.Suspense>
