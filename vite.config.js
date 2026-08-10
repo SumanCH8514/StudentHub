@@ -37,6 +37,9 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, "index.html"),
         routine: path.resolve(__dirname, "routine/index.html"),
+        privacyPolicy: path.resolve(__dirname, "privacy-policy/index.html"),
+        termsOfService: path.resolve(__dirname, "terms-of-service/index.html"),
+        aboutUs: path.resolve(__dirname, "about-us/index.html"),
       },
     },
   },

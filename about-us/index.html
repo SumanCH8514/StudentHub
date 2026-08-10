@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/fav.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="description" content="About Us | StudentHub Platform" />
+  <link rel="apple-touch-icon" href="/fav.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About Us | StudentHub</title>
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('studentHub_theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
