@@ -85,8 +85,9 @@ const Auth = () => {
       }
     });
 
-    if (window.location.hash !== "#auth") {
-      window.history.replaceState(null, "", window.location.pathname + "#auth");
+    const currentPath = window.location.pathname;
+    if ((currentPath === "/" || currentPath === "/routine" || currentPath === "/routine/") && window.location.hash !== "#auth") {
+      window.history.replaceState(null, "", currentPath + "#auth");
     }
 
     return () => unsub();
