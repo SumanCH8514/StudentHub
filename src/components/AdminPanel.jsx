@@ -55,6 +55,7 @@ import AdminAssistantQueries from "./admin/AdminAssistantQueries.jsx";
 import AdminAssistantQA from "./admin/AdminAssistantQA.jsx";
 import AdminAssistantHistory from "./admin/AdminAssistantHistory.jsx";
 import AdminAssistantSettings from "./admin/AdminAssistantSettings.jsx";
+import AdminAcademicConfig from "./admin/AdminAcademicConfig.jsx";
 import { useNavigate } from "react-router-dom";
 
 const cn = (...inputs) => {
@@ -550,6 +551,10 @@ const AdminPanel = () => {
           settings={systemSettings}
           updateSetting={updateSystemSetting}
         />
+      )}
+
+      {activeTab === "academic-config" && (
+        <AdminAcademicConfig />
       )}
 
       {activeTab === "profile" && (
@@ -1191,27 +1196,32 @@ const AdminPanel = () => {
 
       {/* ── DATABASE: Delete Classes ── */}
       {activeTab === "db-del-classes" && (
-        <div className="space-y-6 max-w-4xl mx-auto">
-          {/* Targeted Deletion */}
-          <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
+          {/* Targeted Deletion Card */}
+          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 border border-slate-200/80 dark:border-slate-700/80 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+            
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <Search size={20} />
+              <div className="w-11 h-11 bg-indigo-50 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50 shadow-sm shrink-0">
+                <Trash2 size={22} />
               </div>
-              <h3 className="font-bold text-slate-800 dark:text-white text-lg">Purge Specific Classes</h3>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-xl tracking-tight">Purge Specific Classes</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select course stream parameters to purge class entries from database.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">University</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">University</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <BookOpen size={14} className="text-slate-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <BookOpen size={15} />
                   </div>
                   <select
                     value={deleteFilter.university}
                     onChange={(e) => setDeleteFilter({ ...deleteFilter, university: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-700 dark:text-slate-200 appearance-none pointer-events-auto cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
                   >
                     <option value="SVU">SVU</option>
                     <option value="Regent">Regent</option>
@@ -1221,15 +1231,15 @@ const AdminPanel = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Stream</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Stream</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <GraduationCap size={14} className="text-slate-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <GraduationCap size={15} />
                   </div>
                   <select
                     value={deleteFilter.stream}
                     onChange={(e) => setDeleteFilter({ ...deleteFilter, stream: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-700 dark:text-slate-200 appearance-none pointer-events-auto cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
                   >
                     <option value="B.Tech">B.Tech</option>
                     <option value="BCA">BCA</option>
@@ -1241,15 +1251,15 @@ const AdminPanel = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Semester</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Semester</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CalendarDays size={14} className="text-slate-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <CalendarDays size={15} />
                   </div>
                   <select
                     value={deleteFilter.semester}
                     onChange={(e) => setDeleteFilter({ ...deleteFilter, semester: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-700 dark:text-slate-200 appearance-none pointer-events-auto cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sem {n}</option>)}
                   </select>
@@ -1257,15 +1267,15 @@ const AdminPanel = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Section</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Section</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <UsersIcon size={14} className="text-slate-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <UsersIcon size={15} />
                   </div>
                   <select
                     value={deleteFilter.section}
                     onChange={(e) => setDeleteFilter({ ...deleteFilter, section: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-700 dark:text-slate-200 appearance-none pointer-events-auto cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sec {n}</option>)}
                   </select>
@@ -1276,29 +1286,29 @@ const AdminPanel = () => {
             <button
               onClick={deleteFilteredClasses}
               disabled={isWiping}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-white border-2 border-indigo-600 text-white hover:text-indigo-600 rounded-2xl font-black transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-indigo-500/25 active:scale-95 disabled:opacity-50"
             >
               <Trash2 size={18} />
-              {isWiping ? "Purging..." : "Purge Selected Classes"}
+              <span>{isWiping ? "Purging Classes..." : "Purge Selected Classes"}</span>
             </button>
           </div>
 
           {/* Danger Zone: Global Wipe */}
-          <div className="bg-rose-50/30 dark:bg-rose-900/10 rounded-3xl p-8 border border-rose-100 dark:border-rose-900/30 text-center">
-            <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-rose-500">
-              <AlertTriangle size={24} />
+          <div className="bg-gradient-to-br from-rose-50/50 via-white to-rose-50/30 dark:from-rose-950/20 dark:via-slate-800/80 dark:to-rose-950/10 rounded-[2rem] p-6 sm:p-8 border border-rose-200/70 dark:border-rose-900/40 text-center shadow-lg relative overflow-hidden">
+            <div className="w-14 h-14 bg-rose-500/10 dark:bg-rose-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50">
+              <AlertTriangle size={28} />
             </div>
-            <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 mb-1">Danger Zone</h3>
-            <p className="text-rose-600/70 dark:text-rose-400/50 text-sm max-w-md mx-auto mb-6">
-              Permanently delete all class shared routines across all universities and streams. Use only for end-of-semester cleanup.
+            <h3 className="text-xl font-black text-rose-700 dark:text-rose-400 mb-1.5 tracking-tight">Danger Zone: Global Purge</h3>
+            <p className="text-rose-600/80 dark:text-rose-300/60 text-xs sm:text-sm font-medium max-w-md mx-auto mb-6 leading-relaxed">
+              Permanently delete all class shared routines across all universities, streams, and semesters. Use only for end-of-semester cleanup.
             </p>
             <button
               onClick={wipeGlobalClasses}
               disabled={isWiping}
-              className="flex items-center gap-2 px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-all mx-auto shadow-md shadow-rose-600/20 active:scale-95 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-8 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm transition-all mx-auto shadow-lg shadow-rose-600/25 active:scale-95 disabled:opacity-50 w-full sm:w-auto"
             >
               <Trash2 size={18} />
-              {isWiping ? "Wiping..." : "Wipe All Classes"}
+              <span>{isWiping ? "Wiping Database..." : "Wipe All Classes"}</span>
             </button>
           </div>
         </div>

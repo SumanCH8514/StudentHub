@@ -14,6 +14,7 @@ const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
 const MaintenancePage = React.lazy(() => import("./components/MaintenancePage"));
 const PrivacyPolicy = React.lazy(() => import("./components/PrivacyPolicy"));
 const TermsOfService = React.lazy(() => import("./components/TermsOfService"));
+const AboutUs = React.lazy(() => import("./components/AboutUs"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -99,6 +100,8 @@ function App() {
         <Route path="/admin/*" element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/about-us" element={<AboutUs />} />
+        <Route path="/about" element={<AboutUs />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </React.Suspense>

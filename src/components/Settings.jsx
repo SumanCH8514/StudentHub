@@ -75,6 +75,7 @@ import { onSnapshot, orderBy } from "firebase/firestore";
 import Attendance from "./Attendance";
 import CollegeForms from "./CollegeForms";
 import Loader from "./Loader";
+import { useAcademicConfig } from "../utils/academicConfig";
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -209,6 +210,7 @@ const CardHeader = ({ icon: Icon, iconBg, iconColor, title, subtitle, children }
 /* Main Component                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMobileSidebar = false, classes = [] }) => {
+  const { config: academicConfig } = useAcademicConfig();
   const accountItems = [
     { id: "profile", label: "My Profile", icon: User },
     { id: "academic", label: "Academic Info", icon: GraduationCap },
@@ -417,11 +419,35 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
     }
   };
 
-  // Sycn state if props change (for deep linking from Dashboard)
+
   useEffect(() => {
     setActiveNav(initialTab);
     if (showMobileSidebar) setIsSidebarOpen(true);
   }, [initialTab, showMobileSidebar]);
+
+  const ROLL_FORMAT = {
+    "BCA":  { prefix: "006", code: "BCA" },
+    "ANCS": { prefix: "001", code: "BANC" },
+  };
+
+  const buildFormattedRoll = (stream, admissionYear, numericPart) => {
+    const fmt = ROLL_FORMAT[stream];
+    if (!fmt || !numericPart) return numericPart || "";
+    return `${fmt.prefix}-${fmt.code}-${admissionYear}-${numericPart}`;
+  };
+
+  const extractNumericPart = (stream, rollNumber) => {
+    const fmt = ROLL_FORMAT[stream];
+    if (!fmt || !rollNumber) return rollNumber || "";
+    const prefix = `${fmt.prefix}-${fmt.code}-`;
+    if (rollNumber.startsWith(prefix)) {
+      const parts = rollNumber.split("-");
+      return parts[parts.length - 1] || rollNumber;
+    }
+    return rollNumber;
+  };
+
+  const [rollNumericPart, setRollNumericPart] = useState("");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -434,7 +460,8 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
     semester: "1",
     section: "1",
     rollNumber: "",
-    fetchShared: false,
+    admissionYear: new Date().getFullYear().toString(),
+    fetchShared: true,
     photoBase64: "",
     themePreference: "system",
   });
@@ -525,10 +552,12 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
             semester: data.semester || "1",
             section: data.section || "1",
             rollNumber: data.rollNumber || "",
-            fetchShared: data.fetchShared ?? false,
+            admissionYear: data.admissionYear || new Date().getFullYear().toString(),
+            fetchShared: data.fetchShared ?? true,
             photoBase64: data.photoBase64 || "",
             themePreference: data.themePreference || "system",
           }));
+          setRollNumericPart(extractNumericPart(data.stream || "B.Tech", data.rollNumber || ""));
 
           if (data.readUpdates) {
             setReadUpdates(data.readUpdates);
@@ -726,7 +755,25 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "rollNumericInput") {
+      setRollNumericPart(value);
+      setFormData((prev) => ({
+        ...prev,
+        rollNumber: buildFormattedRoll(prev.stream, prev.admissionYear, value),
+      }));
+    } else if (name === "stream") {
+      setFormData((prev) => {
+        const newRoll = buildFormattedRoll(value, prev.admissionYear, rollNumericPart);
+        return { ...prev, stream: value, rollNumber: newRoll };
+      });
+    } else if (name === "admissionYear") {
+      setFormData((prev) => {
+        const newRoll = buildFormattedRoll(prev.stream, value, rollNumericPart);
+        return { ...prev, admissionYear: value, rollNumber: newRoll };
+      });
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handlePhotoUpload = async (e) => {
@@ -1576,82 +1623,142 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                   subtitle="Your university and course details"
                 />
                 <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="University / College" icon={BookOpen}>
-                      <CustomSelect
-                        name="university"
-                        value={formData.university}
-                        onChange={handleFieldChange}
-                        icon={BookOpen}
-                        options={[
-                          { value: "SVU", label: "SVU" },
-                          { value: "Regent", label: "Regent" },
-                          { value: "Others", label: "Others" },
-                        ]}
-                      />
-                    </Field>
+                  {(() => {
+                    const uniList = (academicConfig.universities || ["SVU", "Regent", "Others"]);
+                    const uniOpts = uniList.map((u) => ({ value: u, label: u }));
+                    if (!uniOpts.some((o) => o.value === "Others")) {
+                      uniOpts.push({ value: "Others", label: "Others (Custom)" });
+                    }
 
-                    {formData.university === "Others" && (
-                      <Field label="Custom Institution">
-                        <input type="text" name="customUniversity" value={formData.customUniversity} onChange={handleFieldChange} className={inputCls(false)} placeholder="Enter college name" required />
-                      </Field>
-                    )}
+                    const streamList = (academicConfig.streams || []);
+                    const streamOpts = streamList.map((st) => ({ value: st.name, label: st.name }));
+                    if (!streamOpts.some((o) => o.value === "Other")) {
+                      streamOpts.push({ value: "Other", label: "Other" });
+                    }
 
-                    <Field label="Stream / Course" icon={GraduationCap}>
-                      <CustomSelect
-                        name="stream"
-                        value={formData.stream}
-                        onChange={handleFieldChange}
-                        icon={GraduationCap}
-                        options={[
-                          { value: "B.Tech", label: "B.Tech" },
-                          { value: "BCA", label: "BCA" },
-                          { value: "ANCS", label: "ANCS" },
-                          { value: "DIPLOMA", label: "DIPLOMA" },
-                          { value: "Other", label: "Other" },
-                        ]}
-                      />
-                    </Field>
+                    const selectedStreamObj = streamList.find((s) => s.name === formData.stream);
+                    const semCount = selectedStreamObj ? (selectedStreamObj.semestersCount || 8) : 8;
+                    const semOpts = Array.from({ length: semCount }, (_, i) => ({
+                      value: (i + 1).toString(),
+                      label: `Sem ${i + 1}`,
+                    }));
 
-                    {formData.stream === "Other" && (
-                      <Field label="Custom Stream">
-                        <input type="text" name="customStream" value={formData.customStream} onChange={handleFieldChange} className={inputCls(false)} placeholder="Enter course name" required />
-                      </Field>
-                    )}
+                    const secCount = selectedStreamObj?.sectionsPerSemester?.[formData.semester] || 4;
+                    const secOpts = Array.from({ length: Number(secCount || 4) }, (_, i) => ({
+                      value: (i + 1).toString(),
+                      label: `Sec ${i + 1}`,
+                    }));
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Semester" icon={CalendarDays}>
-                        <CustomSelect
-                          name="semester"
-                          value={formData.semester}
-                          onChange={handleFieldChange}
-                          icon={CalendarDays}
-                          openUp={true}
-                          options={[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
-                            value: n.toString(),
-                            label: `Sem ${n}`,
-                          }))}
-                        />
-                      </Field>
-                      <Field label="Section" icon={Users}>
-                        <CustomSelect
-                          name="section"
-                          value={formData.section}
-                          onChange={handleFieldChange}
-                          icon={Users}
-                          openUp={true}
-                          options={(formData.stream === "B.Tech" ? [1, 2, 3, 4, 5, 6, 7, 8] : [1, 2, 3, 4]).map((n) => ({
-                            value: n.toString(),
-                            label: `Sec ${n}`,
-                          }))}
-                        />
-                      </Field>
-                    </div>
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field label="University / College" icon={BookOpen}>
+                          <CustomSelect
+                            name="university"
+                            value={formData.university}
+                            onChange={handleFieldChange}
+                            icon={BookOpen}
+                            options={uniOpts}
+                          />
+                        </Field>
 
-                    <Field label="Roll Number" icon={Hash}>
-                      <input type="text" name="rollNumber" value={formData.rollNumber} onChange={handleFieldChange} className={inputCls()} placeholder="Registration / Roll No." />
-                    </Field>
-                  </div>
+                        {formData.university === "Others" && (
+                          <Field label="Custom Institution">
+                            <input type="text" name="customUniversity" value={formData.customUniversity} onChange={handleFieldChange} className={inputCls(false)} placeholder="Enter college name" required />
+                          </Field>
+                        )}
+
+                        <Field label="Stream / Course" icon={GraduationCap}>
+                          <CustomSelect
+                            name="stream"
+                            value={formData.stream}
+                            onChange={handleFieldChange}
+                            icon={GraduationCap}
+                            options={streamOpts}
+                          />
+                        </Field>
+
+                        {formData.stream === "Other" && (
+                          <Field label="Custom Stream">
+                            <input type="text" name="customStream" value={formData.customStream} onChange={handleFieldChange} className={inputCls(false)} placeholder="Enter course name" required />
+                          </Field>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <Field label="Semester" icon={CalendarDays}>
+                            <CustomSelect
+                              name="semester"
+                              value={formData.semester}
+                              onChange={handleFieldChange}
+                              icon={CalendarDays}
+                              openUp={true}
+                              options={semOpts}
+                            />
+                          </Field>
+                          <Field label="Section" icon={Users}>
+                            <CustomSelect
+                              name="section"
+                              value={formData.section}
+                              onChange={handleFieldChange}
+                              icon={Users}
+                              openUp={true}
+                              options={secOpts}
+                            />
+                          </Field>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <Field label="Admission Year" icon={CalendarDays}>
+                            <CustomSelect
+                              name="admissionYear"
+                              value={formData.admissionYear || new Date().getFullYear().toString()}
+                              onChange={handleFieldChange}
+                              icon={CalendarDays}
+                              openUp={true}
+                              options={Array.from({ length: 12 }, (_, i) => {
+                                const yr = (new Date().getFullYear() - i + 1).toString();
+                                return { value: yr, label: yr };
+                              })}
+                            />
+                          </Field>
+
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 ml-1">Roll Number</label>
+                            {ROLL_FORMAT[formData.stream] ? (
+                              <div className="flex items-stretch rounded-xl border border-slate-200 dark:border-slate-700 bg-[#f5f5f9] dark:bg-slate-900 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-400 transition-all shadow-sm">
+                                <div className="w-3/4 flex items-center gap-1 px-2.5 py-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 border-r border-slate-200 dark:border-slate-700 select-none overflow-hidden">
+                                  <Hash size={11} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                  <span className="text-sm font-black text-indigo-700 dark:text-indigo-300 tracking-wider truncate">
+                                    {ROLL_FORMAT[formData.stream].prefix}-{ROLL_FORMAT[formData.stream].code}-{formData.admissionYear || new Date().getFullYear()}-
+                                  </span>
+                                </div>
+                                <input
+                                  type="text"
+                                  name="rollNumericInput"
+                                  value={rollNumericPart}
+                                  onChange={handleFieldChange}
+                                  className="w-1/4 bg-transparent py-3 px-2.5 text-sm font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+                                  placeholder="406"
+                                  maxLength={6}
+                                />
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <Hash size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  name="rollNumericInput"
+                                  value={rollNumericPart}
+                                  onChange={handleFieldChange}
+                                  className={inputCls(true)}
+                                  placeholder="Roll No."
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </Card>
             )}
@@ -1864,7 +1971,10 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                 />
                 <div className="w-full relative min-h-[75vh] md:min-h-[85vh] rounded-b-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50">
                   <iframe
-                    src="https://sumanonline.com/studentHub/result/"
+                    src={formData.rollNumber
+                      ? `https://sumanonline.com/studentHub/result/index.php?roll=${encodeURIComponent(formData.rollNumber)}`
+                      : "https://sumanonline.com/studentHub/result/"
+                    }
                     title="StudentHub Results Portal"
                     className="absolute top-0 left-0 w-full h-full border-0"
                     allowFullScreen

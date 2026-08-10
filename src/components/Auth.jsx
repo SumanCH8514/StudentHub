@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import Footer from "./Footer";
 import { auth, db, googleProvider } from "../firebaseConfig";
 import {
   createUserWithEmailAndPassword,
@@ -223,13 +224,13 @@ const Auth = () => {
   );
 
   return (
-    <div className="min-h-screen lg:h-screen w-full flex bg-slate-50 dark:bg-[#0F172A] font-sans overflow-x-hidden lg:overflow-hidden text-slate-800 dark:text-slate-200 selection:bg-indigo-500/30 transition-colors duration-300">
+    <div className="min-h-screen lg:h-screen w-full flex flex-col lg:flex-row-reverse bg-slate-50 dark:bg-[#0F172A] font-sans overflow-x-hidden lg:overflow-hidden text-slate-800 dark:text-slate-200 selection:bg-indigo-500/30 transition-colors duration-300">
 
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-        <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-gradient-to-br from-indigo-200 via-slate-50 to-purple-200 dark:from-indigo-900 dark:via-[#0F172A] dark:to-purple-900 animate-mesh filter blur-[80px]" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20 dark:opacity-30">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200 via-transparent to-transparent dark:from-indigo-900/40" />
       </div>
 
-      <div className="w-full lg:w-[40%] xl:w-[35%] flex flex-col pt-6 pb-8 px-6 sm:px-10 lg:px-12 relative z-20 bg-white/90 dark:bg-[#0F172A]/80 backdrop-blur-3xl border-r border-slate-200 dark:border-white/5 overflow-y-auto lg:overflow-y-auto min-h-screen lg:h-full custom-scrollbar transition-colors duration-300">
+      <div className="w-full max-w-full lg:w-[40%] xl:w-[35%] flex flex-col pt-6 pb-8 px-4 sm:px-10 lg:px-12 relative z-20 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-l border-slate-200 dark:border-white/5 overflow-y-auto overflow-x-hidden lg:overflow-y-auto min-h-screen lg:h-full custom-scrollbar transition-colors duration-200">
 
         <button
           onClick={toggleTheme}
@@ -240,12 +241,12 @@ const Auth = () => {
           {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-indigo-600" />}
         </button>
 
-        <div className="w-full max-sm:max-w-xs max-w-sm mx-auto flex flex-col items-center justify-center mb-2 shrink-0">
-          <a href="/" className="cursor-pointer hover:opacity-90 transition-opacity">
+        <div className="w-full max-sm:max-w-xs max-w-sm mx-auto flex flex-col items-center justify-center mb-4 shrink-0">
+          <a href="/" className="cursor-pointer hover:opacity-90 transition-opacity flex flex-col items-center">
             <img
-              src={StudentHubLogo}
+              src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
               alt="StudentHub Logo"
-              className="w-56 sm:w-64 h-auto object-contain drop-shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-105 transition-transform duration-500 mx-auto"
+              className="h-16 sm:h-20 max-w-[280px] w-auto object-contain transition-transform duration-300 hover:scale-105 mx-auto"
             />
           </a>
         </div>
@@ -253,11 +254,11 @@ const Auth = () => {
         <div className="w-full max-sm:max-w-xs max-w-sm mx-auto animate-in fade-in slide-in-from-left-10 duration-1000">
 
           <div className="mb-4 text-center">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">
-              {isLogin ? "Welcome back" : "Get started"}
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-[12px] font-medium tracking-wide mx-auto max-w-[280px]">
-              {isLogin ? "Enter your credentials to continue your journey." : "Join the most advanced student community."}
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">
+              {isLogin ? "Welcome back" : "Get started with StudentHub"}
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs font-medium tracking-wide mx-auto text-center leading-normal">
+              {isLogin ? "Enter your credentials to continue your academic journey." : "Join the most advanced student community."}
             </p>
           </div>
 
@@ -360,7 +361,7 @@ const Auth = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-48 mx-auto py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-sm shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] active:scale-[0.98] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2.5 group relative overflow-hidden"
+                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl font-black text-sm shadow-lg shadow-indigo-500/25 active:scale-[0.98] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 group relative overflow-hidden"
               >
                 {loading ? <Loader inline size="sm" /> : (
                   <>
@@ -381,20 +382,20 @@ const Auth = () => {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-xl font-bold text-[13px] border border-slate-300 dark:border-white/10 flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                className="w-full py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-800 dark:text-white rounded-xl font-bold text-[13px] border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
               >
                 <GoogleIcon />
                 <span>{isLogin ? "Continue with Google" : "Join with Google"}</span>
               </button>
 
               <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/5 text-center">
-                <p className="text-slate-500 dark:text-slate-500 font-medium text-[10px] mb-1.5">
-                  {isLogin ? "New to the StudetHub?" : "Already part of the StudentHub?"}
+                <p className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1.5">
+                  {isLogin ? "New to StudentHub?" : "Already part of StudentHub?"}
                 </p>
                 <button
                   type="button"
                   onClick={() => { setIsLogin(!isLogin); setError(""); }}
-                  className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-lg text-px font-bold transition-all border border-slate-300 dark:border-white/5 active:scale-95 shadow-sm"
+                  className="w-full py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-white/5 active:scale-95 shadow-sm"
                 >
                   {isLogin ? "Create an account" : "Back to login"}
                 </button>
@@ -404,54 +405,59 @@ const Auth = () => {
 
         </div>
 
-        <footer className="mt-auto py-4 text-center space-y-1 opacity-70 hover:opacity-100 transition-opacity duration-300 w-full shrink-0">
-          <p className="text-[10px] font-medium tracking-[0.05em] text-slate-500 dark:text-slate-400 uppercase">
-            &copy; 2023 - 2026 <b className="text-indigo-600 dark:text-indigo-400 font-bold">STUDENTHUB</b> | All Rights Reserved
+        {/* Mobile-Friendly Purpose Card (< lg screens) */}
+        <div className="lg:hidden w-full max-sm:max-w-xs max-w-sm mx-auto mt-6 mb-2 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl text-center shadow-sm">
+          <div className="flex items-center justify-center gap-1.5 mb-1.5">
+            <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">About StudentHub App</span>
+          </div>
+          <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
+            StudentHub is an all-in-one academic management app that helps university students organize class schedules, track course attendance, manage exam routines, access study resources, and receive AI academic assistance.
           </p>
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-4 h-px bg-slate-300 dark:bg-white/10" />
-            <p className="text-[10px] font-semibold tracking-wider flex items-center gap-1.5 text-slate-500 dark:text-slate-500">
-              <Cpu size={12} className="text-indigo-600 dark:text-indigo-500/70" />
-              <span>Maintained by <b className="text-slate-700 dark:text-slate-300 font-bold">SumanOnline.Com</b></span>
-            </p>
-            <div className="w-4 h-px bg-slate-300 dark:bg-white/10" />
-          </div>
+        </div>
 
-          <div className="flex items-center justify-center gap-4 mt-3">
-            <Link to="/privacy-policy" className="text-[10px] text-slate-500 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">Privacy Policy</Link>
-            <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-700" />
-            <Link to="/terms-of-service" className="text-[10px] text-slate-500 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">Terms of Service</Link>
-          </div>
-        </footer>
+        <Footer />
 
       </div>
 
-      <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-slate-100 dark:from-slate-950 dark:via-indigo-950 dark:to-purple-950 flex-col items-center justify-between p-5 xl:p-7 overflow-hidden border-l border-slate-200 dark:border-white/10 h-full transition-colors duration-300">
+      <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-indigo-50/50 via-slate-50 to-purple-50/50 dark:from-slate-950 dark:via-[#0F172A] dark:to-indigo-950/80 flex-col items-center justify-between p-4 xl:p-6 overflow-hidden border-r border-slate-200 dark:border-white/10 h-full transition-colors duration-200">
 
-        <div className="absolute inset-0 opacity-40 dark:opacity-50 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-10%] left-[10%] w-[550px] h-[550px] bg-indigo-300/40 dark:bg-indigo-600/30 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[120px] animate-blob" />
-          <div className="absolute bottom-[-10%] right-[10%] w-[450px] h-[450px] bg-purple-300/40 dark:bg-purple-600/30 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[110px] animate-blob animation-delay-2000" />
-          <div className="absolute top-[40%] right-[30%] w-[350px] h-[350px] bg-cyan-200/40 dark:bg-cyan-500/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[90px] animate-blob animation-delay-4000" />
+        <div className="absolute inset-0 opacity-20 dark:opacity-30 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-5%] left-[5%] w-[400px] h-[400px] bg-indigo-400/20 dark:bg-indigo-600/20 rounded-full filter blur-[80px] transform-gpu" />
+          <div className="absolute bottom-[-5%] right-[5%] w-[350px] h-[350px] bg-purple-400/20 dark:bg-purple-600/20 rounded-full filter blur-[70px] transform-gpu" />
         </div>
 
         <div className="relative z-10 w-full max-w-2xl my-auto flex flex-col justify-between h-full py-1 animate-in fade-in slide-in-from-right-12 duration-1000">
 
           <div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-indigo-500/10 dark:bg-indigo-500/10 backdrop-blur-md rounded-full border border-indigo-300 dark:border-indigo-500/30 mb-2 shadow-sm dark:shadow-[0_0_15px_rgba(99,102,241,0.2)] w-max">
-              <Sparkles size={13} className="text-indigo-600 dark:text-indigo-400 animate-pulse" />
-              <span className="text-[9.5px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-200">Premium Academic Ecosystem</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-indigo-500/10 dark:bg-indigo-500/10 backdrop-blur-md rounded-full border border-indigo-300 dark:border-indigo-500/30 mb-1.5 shadow-sm dark:shadow-[0_0_15px_rgba(99,102,241,0.2)] w-max">
+              <Sparkles size={12} className="text-indigo-600 dark:text-indigo-400 animate-pulse" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-200">Premium Academic Ecosystem</span>
             </div>
 
-            <h2 className="text-[28px] xl:text-[36px] font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter mb-1.5">
+            <h2 className="text-[24px] xl:text-[30px] font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter mb-1">
               Elevate your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 dark:from-indigo-400 dark:via-purple-300 dark:to-pink-400">Learning Path.</span>
             </h2>
 
-            <p className="text-slate-600 dark:text-slate-300 text-[12px] xl:text-[13px] font-medium max-w-lg mb-3 leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-300 text-[11px] xl:text-[12px] font-medium max-w-lg mb-2 leading-tight">
               Organize your classes, sync with global university schedules, and unlock AI-powered insights for every course you take.
             </p>
+
+            {/* Application Purpose Banner for Google OAuth & Users */}
+            <div className="w-full bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-cyan-50/80 dark:from-indigo-950/60 dark:via-purple-950/40 dark:to-slate-900/60 border border-indigo-200/90 dark:border-indigo-800/60 backdrop-blur-xl p-2.5 sm:p-3 rounded-xl shadow-sm mb-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <Sparkles size={12} className="animate-pulse" />
+                </div>
+                <h3 className="text-[10.5px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">About StudentHub App</h3>
+              </div>
+              <p className="text-[11px] xl:text-[12px] text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
+                StudentHub is an all-in-one academic management app that helps university students organize class schedules, track course attendance, manage exam routines, access study resources, and receive AI academic assistance.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-3 w-full">
+          <div className="grid grid-cols-2 gap-2 mb-2.5 w-full">
             {[
               { icon: Layout, title: "Smart Dashboard", desc: "Automated routine sync.", gradient: "from-indigo-500 to-blue-600" },
               { icon: BookOpen, title: "Resource Hub", desc: "Global academic sync.", gradient: "from-purple-500 to-pink-600" },
@@ -460,70 +466,72 @@ const Auth = () => {
             ].map((feat, i) => (
               <div
                 key={i}
-                className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 hover:border-indigo-500/40 hover:bg-white dark:hover:bg-slate-900/90 shadow-md dark:shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 group hover:-translate-y-0.5"
+                className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 hover:border-indigo-500/40 hover:bg-white dark:hover:bg-slate-900/90 shadow-md dark:shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 group hover:-translate-y-0.5 flex items-center gap-3"
               >
-                <div className={`w-9 h-9 bg-gradient-to-tr ${feat.gradient} rounded-xl flex items-center justify-center mb-2 shadow-md group-hover:scale-110 transition-transform`}>
-                  <feat.icon className="text-white" size={17} />
+                <div className={`w-8 h-8 bg-gradient-to-tr ${feat.gradient} rounded-lg flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
+                  <feat.icon className="text-white" size={15} />
                 </div>
-                <h4 className="text-slate-900 dark:text-white text-[13px] xl:text-[14px] font-bold mb-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">{feat.title}</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] xl:text-[11px] font-medium leading-tight">{feat.desc}</p>
+                <div className="min-w-0">
+                  <h4 className="text-slate-900 dark:text-white text-[12px] xl:text-[13px] font-bold leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors truncate">{feat.title}</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-[9.5px] xl:text-[10px] font-medium leading-tight truncate">{feat.desc}</p>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 w-full animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-            <div className="space-y-2">
-              <h3 className="text-[13px] xl:text-[14px] font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
-                <Award className="text-amber-500 dark:text-amber-400" size={16} />
+          <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
+            <div className="space-y-1.5">
+              <h3 className="text-[12px] xl:text-[13px] font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
+                <Award className="text-amber-500 dark:text-amber-400" size={15} />
                 Why join StudentHub?
               </h3>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {[
                   "Personalized routines & holiday trackers.",
                   "Cloud sync across all your devices.",
                   "Exclusive AI Academic Assistant.",
                   "Seamless university integrations."
                 ].map((text, i) => (
-                  <div key={i} className="flex items-center gap-2.5 bg-white/70 dark:bg-white/[0.04] hover:bg-white dark:hover:bg-white/[0.08] backdrop-blur-md p-1.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/30 transition-all group shadow-sm">
-                    <div className="w-4.5 h-4.5 rounded-md bg-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-[0_0_8px_rgba(99,102,241,0.3)]">
-                      <CheckCircle2 size={11} />
+                  <div key={i} className="flex items-center gap-2 bg-white/70 dark:bg-white/[0.04] hover:bg-white dark:hover:bg-white/[0.08] backdrop-blur-md py-1 px-2.5 rounded-lg border border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/30 transition-all group shadow-sm">
+                    <div className="w-4 h-4 rounded-md bg-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-[0_0_8px_rgba(99,102,241,0.3)]">
+                      <CheckCircle2 size={10} />
                     </div>
-                    <span className="text-slate-800 dark:text-slate-200 text-[11px] xl:text-[12px] font-semibold leading-tight">{text}</span>
+                    <span className="text-slate-800 dark:text-slate-200 text-[10px] xl:text-[11px] font-semibold leading-tight truncate">{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-[13px] xl:text-[14px] font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
-                <ShieldAlert className="text-emerald-600 dark:text-emerald-400" size={16} />
+            <div className="space-y-1.5">
+              <h3 className="text-[12px] xl:text-[13px] font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
+                <ShieldAlert className="text-emerald-600 dark:text-emerald-400" size={15} />
                 Legal Hub
               </h3>
-              <div className="flex flex-col gap-2">
-                <Link to="/terms-of-service" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2.5 px-3.5 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-md">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0 border border-emerald-500/30">
-                      <FileText size={15} />
+              <div className="flex flex-col gap-1.5">
+                <Link to="/terms-of-service" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2 px-3 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0 border border-emerald-500/30">
+                      <FileText size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-slate-900 dark:text-white text-[12.5px] xl:text-[13px] font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">Terms of Service</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-[9.5px] font-medium">Rules & guidelines</span>
+                      <span className="text-slate-900 dark:text-white text-[11.5px] xl:text-[12px] font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">Terms of Service</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[9px] font-medium">Rules & guidelines</span>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight size={13} className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                 </Link>
 
-                <Link to="/privacy-policy" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2.5 px-3.5 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-md">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shrink-0 border border-purple-500/30">
-                      <Shield size={15} />
+                <Link to="/privacy-policy" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2 px-3 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shrink-0 border border-purple-500/30">
+                      <Shield size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-slate-900 dark:text-white text-[12.5px] xl:text-[13px] font-bold group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">Privacy Policy</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-[9.5px] font-medium">Data protection</span>
+                      <span className="text-slate-900 dark:text-white text-[11.5px] xl:text-[12px] font-bold group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">Privacy Policy</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[9px] font-medium">Data protection</span>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight size={13} className="text-slate-400 dark:text-slate-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
                 </Link>
               </div>
             </div>

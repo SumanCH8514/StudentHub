@@ -27,7 +27,8 @@ import {
     Files,
     CalendarRange,
     FileText,
-    BookOpen
+    BookOpen,
+    Layers
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -87,6 +88,7 @@ const AdminLayout = ({
         { id: "students", label: "Student Details", icon: Users },
         { id: "results", label: "Results", icon: FileSignature },
         { id: "settings", label: "Settings", icon: SettingsIcon },
+        { id: "academic-config", label: "Academic Config", icon: Layers },
         { id: "system-status", label: "System Status", icon: Activity },
         { id: "updates", label: "Updates", icon: Bell },
     ];

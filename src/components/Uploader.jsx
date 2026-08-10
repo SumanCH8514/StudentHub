@@ -11,6 +11,48 @@ const Uploader = ({ onUploadSuccess }) => {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setImage(e.dataTransfer.files[0]);
+    }
+  };
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith("image/") || item.type === "application/pdf") {
+          const pastedFile = item.getAsFile();
+          if (pastedFile) {
+            e.preventDefault();
+            setImage(pastedFile);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
 
   const handleUploadAndParse = async () => {
     if (!image || !auth.currentUser)
@@ -132,15 +174,25 @@ const Uploader = ({ onUploadSuccess }) => {
       </div>
 
       {!image ? (
-        <label className="border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-slate-800/40 rounded-[2.25rem] p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/60 dark:hover:bg-slate-800/80 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300 group mb-6 shadow-inner relative overflow-hidden">
-          <div className="bg-white dark:bg-slate-700 p-4 sm:p-5 rounded-2xl mb-4 shadow-xl shadow-indigo-500/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0">
+        <label
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-[2.25rem] p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group mb-6 shadow-inner relative overflow-hidden ${
+            isDragging
+              ? "border-indigo-500 bg-indigo-100/60 dark:bg-indigo-950/60 ring-4 ring-indigo-500/20 scale-[1.02]"
+              : "border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-slate-800/40 hover:bg-indigo-50/60 dark:hover:bg-slate-800/80 hover:border-indigo-500 dark:hover:border-indigo-400"
+          }`}
+        >
+          <div className={`p-4 sm:p-5 rounded-2xl mb-4 shadow-xl transition-all duration-300 shrink-0 ${
+            isDragging ? "bg-indigo-600 text-white scale-110 animate-bounce" : "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 group-hover:rotate-3"
+          }`}>
             <UploadCloud
               size={36}
-              className="text-indigo-600 dark:text-indigo-400"
             />
           </div>
           <span className="font-black text-slate-800 dark:text-white text-lg sm:text-xl text-center leading-tight">
-            Drop routine image or click to browse
+            {isDragging ? "Drop your image file here!" : "Drag & Drop, Paste (Ctrl+V) or Click to browse"}
           </span>
           <p className="text-slate-400 dark:text-slate-500 text-xs sm:text-sm font-medium mt-2 text-center">
             Upload your official class schedule or exam timetable

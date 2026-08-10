@@ -1,32 +1,30 @@
 import React from "react";
-import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Cpu } from "lucide-react";
 
 const Footer = () => {
     return (
-        <footer className="w-full py-12 px-6 mt-12 bg-white border-t border-slate-100">
-            <div className="max-w-5xl mx-auto flex flex-col items-center text-center gap-6">
-                <div className="flex flex-col gap-2">
-                    <p className="text-sm font-black text-slate-900 tracking-tight">
-                        © 2018-2026 Student<span className="text-indigo-600">Hub</span> | All Rights Reserved.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                        <span>Designed And Maintained by</span>
-                        <a
-                            href="https://SumanOnline.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-700 transition-colors"
-                        >
-                            SumanOnline.com
-                        </a>
-                    </div>
-                </div>
+        <footer className="mt-auto py-5 text-center space-y-2 opacity-90 hover:opacity-100 transition-opacity duration-300 w-full shrink-0">
+            <p className="text-[10px] sm:text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">
+                &copy; 2023 - 2026 <b className="text-indigo-600 dark:text-indigo-400 font-bold">STUDENTHUB</b> | ALL RIGHTS RESERVED
+            </p>
+            <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-px bg-slate-300 dark:bg-white/10" />
+                <p className="text-[10px] sm:text-xs font-semibold tracking-wider flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                    <Cpu size={12} className="text-indigo-600 dark:text-indigo-500/70" />
+                    <span>Maintained by <b className="text-slate-700 dark:text-slate-300 font-bold">SumanOnline.Com</b></span>
+                </p>
+                <div className="w-4 h-px bg-slate-300 dark:bg-white/10" />
+            </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="h-px w-8 bg-slate-100" />
-                    <Heart size={14} className="text-rose-500 animate-pulse" />
-                    <div className="h-px w-8 bg-slate-100" />
-                </div>
+            <div className="flex items-center justify-center gap-3 mt-2">
+                <Link to="/" className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">Home</Link>
+                <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-700" />
+                <Link to="/about-us" className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">About Us</Link>
+                <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-700" />
+                <Link to="/privacy-policy" className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">Privacy Policy</Link>
+                <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-700" />
+                <Link to="/terms-of-service" className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium tracking-wide transition-colors">Terms of Service</Link>
             </div>
         </footer>
     );

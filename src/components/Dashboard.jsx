@@ -16,6 +16,7 @@ import { db, auth, messaging } from "../firebaseConfig";
 import { signOut } from "firebase/auth";
 import { onMessage } from "firebase/messaging";
 import { notificationService } from "../utils/NotificationService";
+import { useAcademicConfig } from "../utils/academicConfig";
 import {
   LayoutDashboard,
   LogOut,
@@ -175,6 +176,7 @@ const Dashboard = () => {
   const [userRole, setUserRole] = useState("user");
   const [userName, setUserName] = useState("Student");
   const [userPhoto, setUserPhoto] = useState(null);
+  const { config: academicConfig } = useAcademicConfig();
   const [userData, setUserData] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -748,8 +750,7 @@ const Dashboard = () => {
     }
   };
 
-  // --- Derived Data for UI & Notifications ---
-  // 1. Compute active holidays for the currently selected date
+
   const activeHolidays = holidays.filter((h) => {
     if (!h.date) return false;
     const y = selectedDate.getFullYear();
@@ -766,10 +767,32 @@ const Dashboard = () => {
       : `${getFormattedDate(selectedDate)} is a Holiday: ${h.occasion}`
   }));
 
-  // 2. Process selected day's classes
+
+  const validWeeklyClasses = React.useMemo(() => {
+    if (!Array.isArray(classes)) return [];
+    const valid = classes.filter(c => {
+      if (!c || !c.subject) return false;
+      const sub = String(c.subject).trim().toLowerCase();
+      return sub !== "" && sub !== "free" && sub !== "lunch" && sub !== "break" && sub !== "none" && sub !== "subject" && sub !== "n/a" && sub !== "no class";
+    });
+
+    const map = new Map();
+    valid.forEach(c => {
+      const day = (c.day || "").trim().toLowerCase();
+      const timeStr = (c.time || c.startTime || "").trim().toLowerCase();
+      const start = timeStr.split("-")[0]?.trim().replace(/^0/, "") || timeStr;
+      const key = `${day}_${start}_${c.subject.trim().toLowerCase()}`;
+      if (!map.has(key)) {
+        map.set(key, c);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [classes]);
+
   const filteredClasses = activeHolidays.length > 0
     ? []
-    : classes
+    : validWeeklyClasses
       .filter((c) => c.day?.toLowerCase() === selectedDayName.toLowerCase())
       .map((c) => {
         const timeStr = c.time || (c.startTime && c.endTime ? `${c.startTime} - ${c.endTime}` : c.startTime || "");
@@ -800,6 +823,7 @@ const Dashboard = () => {
   const pastClasses = isSelectedToday ? filteredClasses.filter((c) => c.status === "past") : [];
   const timelineClasses = isSelectedToday ? [...(currentClass ? [currentClass] : []), ...upcomingClasses, ...pastClasses] : filteredClasses;
   const isAllClassesDone = isSelectedToday && filteredClasses.length > 0 && filteredClasses.every(c => c.status === "past");
+  const actualTotalWeeklyClasses = validWeeklyClasses.length;
 
   // --- Notification System Initialization ---
   useEffect(() => {
@@ -1408,7 +1432,7 @@ const Dashboard = () => {
                     className="fixed inset-0 z-[9998]"
                     onClick={() => setIsNotificationsOpen(false)}
                   />
-                  <div className="fixed sm:absolute top-20 sm:top-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 sm:mt-[18px] w-[calc(100vw-32px)] max-w-sm sm:w-84 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-100 dark:border-slate-700 z-[9999] overflow-hidden animate-slide-in-down flex flex-col max-h-[420px]">
+                  <div className="fixed top-20 left-1/2 -translate-x-1/2 sm:top-[80px] sm:left-auto sm:right-[72px] sm:translate-x-0 w-[calc(100vw-32px)] max-w-sm sm:w-84 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-100 dark:border-slate-700 z-[9999] overflow-hidden animate-slide-in-down flex flex-col max-h-[420px]">
                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-slate-800 dark:text-white text-[14px]">Notifications</h3>
@@ -1722,8 +1746,8 @@ const Dashboard = () => {
                               {cls.subject}
                             </h2>
 
-                            {/* Details Row (Time & Teacher) */}
-                            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 lg:gap-8">
+                            {/* Details Row (Time, Teacher & Room) */}
+                            <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:gap-8">
                               <div className="flex items-center gap-3 group-hover:translate-x-1 transition-transform duration-500 ease-out">
                                 <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-indigo-400'}`}>
                                   <Clock size={16} className="shrink-0 md:w-5 md:h-5" />
@@ -1740,7 +1764,18 @@ const Dashboard = () => {
                                   <User size={16} className="shrink-0 md:w-5 md:h-5" />
                                 </div>
                                 <span className="font-bold text-sm md:text-base break-words whitespace-normal text-slate-700 dark:text-indigo-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-500">
-                                  {cls.teacher}
+                                  {cls.teacher || cls.instructor || "N/A"}
+                                </span>
+                              </div>
+
+                              <div className="hidden sm:block w-[1px] h-8 bg-slate-800/20 dark:bg-white/20 transition-colors duration-500 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"></div>
+
+                              <div className="flex items-center gap-3 min-w-0 group-hover:translate-x-1 transition-transform duration-500 ease-out delay-100">
+                                <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-rose-50 text-rose-500 dark:bg-rose-500/20 dark:text-rose-400 group-hover:bg-rose-100 dark:group-hover:bg-rose-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-rose-400'}`}>
+                                  <MapPin size={16} className="shrink-0 md:w-5 md:h-5" />
+                                </div>
+                                <span className="font-bold text-sm md:text-base break-words whitespace-normal text-slate-700 dark:text-indigo-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-500">
+                                  {cls.room || cls.location || cls.roomNo ? `Room: ${cls.room || cls.location || cls.roomNo}` : "Room: N/A"}
                                 </span>
                               </div>
                             </div>
@@ -1893,7 +1928,7 @@ const Dashboard = () => {
                         <div className="flex-1 min-w-0 pr-4 w-full sm:w-auto">
                           <h4
                             className={cn(
-                              "font-black text-base sm:text-lg tracking-tight leading-tight mb-1 break-words whitespace-normal",
+                              "font-black text-base sm:text-lg tracking-tight leading-tight mb-1.5 break-words whitespace-normal",
                               isPast
                                 ? "text-slate-500"
                                 : "text-[#1e1b4b] dark:text-white",
@@ -1901,11 +1936,20 @@ const Dashboard = () => {
                           >
                             {item.subject}
                           </h4>
-                          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                            <User size={12} className="shrink-0" />
-                            <span className="text-xs font-bold break-words whitespace-normal">
-                              {item.teacher}
-                            </span>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                              <User size={12} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
+                              <span className="text-xs font-bold break-words whitespace-normal">
+                                {item.teacher || item.instructor || "N/A"}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <MapPin size={12} className="shrink-0 text-rose-500 dark:text-rose-400" />
+                              <span className="text-xs font-bold break-words whitespace-normal">
+                                {item.room || item.location || item.roomNo ? `Room: ${item.room || item.location || item.roomNo}` : "Room: N/A"}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -2083,7 +2127,7 @@ const Dashboard = () => {
                 Total Classes
               </p>
               <h2 className="text-6xl sm:text-7xl font-black text-[#1e1b4b] dark:text-white tracking-tighter leading-none mb-3">
-                {classes.length}
+                {actualTotalWeeklyClasses}
               </h2>
               <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mb-6">
                 Classes / Week
@@ -2254,9 +2298,14 @@ const Dashboard = () => {
                     onChange={(e) => setAcademicData({ ...academicData, university: e.target.value })}
                     className="w-full text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all appearance-none cursor-pointer pr-10 shadow-xs"
                   >
-                    <option value="SVU" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">SVU (Swami Vivekananda University)</option>
-                    <option value="Regent" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Regent Education & Research Foundation</option>
-                    <option value="Others" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Others (Custom Institution)</option>
+                    {(academicConfig.universities || ["SVU", "Regent", "Others"]).map((uni) => (
+                      <option key={uni} value={uni} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        {uni}
+                      </option>
+                    ))}
+                    {!((academicConfig.universities || []).includes("Others")) && (
+                      <option value="Others" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Others (Custom Institution)</option>
+                    )}
                   </select>
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     <ChevronDown size={16} />

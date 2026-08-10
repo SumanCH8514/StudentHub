@@ -35,6 +35,7 @@ import {
 import { clsx } from "clsx";
 import Loader from "../Loader.jsx";
 import { twMerge } from "tailwind-merge";
+import { useAcademicConfig } from "../../utils/academicConfig";
 
 const cn = (...inputs) => {
     return twMerge(clsx(inputs));
@@ -44,6 +45,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.stu
 
 
 const AdminExamRoutineUploader = () => {
+    const { config: academicConfig } = useAcademicConfig();
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState("idle"); // idle, processing, success, error, preview
     const [error, setError] = useState("");
@@ -242,9 +244,11 @@ const AdminExamRoutineUploader = () => {
                                         onChange={(e) => setSelection({ ...selection, university: e.target.value })}
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700 dark:text-slate-200 appearance-none cursor-pointer"
                                     >
-                                        <option value="SVU">SVU</option>
-                                        <option value="Regent">Regent</option>
-                                        <option value="Others">Others</option>
+                                        {(academicConfig.universities || ["SVU", "Regent", "Others"]).map((uni) => (
+                                            <option key={uni} value={uni}>
+                                                {uni}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

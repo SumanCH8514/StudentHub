@@ -24,11 +24,13 @@ import {
     Search,
     Check,
     Trash2,
-    History
+    History,
+    RotateCcw
 } from "lucide-react";
 import { clsx } from "clsx";
 import Loader from "../Loader.jsx";
 import { twMerge } from "tailwind-merge";
+import { useAcademicConfig } from "../../utils/academicConfig";
 
 const cn = (...inputs) => {
     return twMerge(clsx(inputs));
@@ -38,8 +40,9 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.stu
 
 
 const AdminRoutineUploader = () => {
+    const { config: academicConfig } = useAcademicConfig();
     const [loading, setLoading] = useState(false);
-    const [status, setStatus] = useState("idle"); // idle, processing, success, error, preview
+    const [status, setStatus] = useState("idle");
     const [error, setError] = useState("");
     const [previewData, setPreviewData] = useState(null);
     const [existingRoutines, setExistingRoutines] = useState([]);
@@ -52,23 +55,41 @@ const AdminRoutineUploader = () => {
         section: "1"
     });
 
+    const activeStreamObj = academicConfig.streams.find(
+        (st) => st.name.toLowerCase() === selection.stream.toLowerCase() || st.id === selection.stream.toLowerCase()
+    ) || academicConfig.streams[0] || { semestersCount: 8, sectionsPerSemester: {} };
+
+    const maxSemesters = activeStreamObj.semestersCount || 8;
+    const maxSections = activeStreamObj.sectionsPerSemester?.[selection.semester] || 4;
+
+    const availableSemesters = Array.from({ length: maxSemesters }, (_, i) => (i + 1).toString());
+    const availableSections = Array.from({ length: maxSections }, (_, i) => (i + 1).toString());
+
     const [file, setFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
 
-    // Fetch existing routines for the selection
     useEffect(() => {
         setLoadingExisting(true);
         const q = query(
             collection(db, "shared_routines"),
             where("university", "==", selection.university),
-            where("stream", "==", selection.stream),
-            where("semester", "==", selection.semester),
-            where("section", "==", selection.section)
+            where("stream", "==", selection.stream)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const routines = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Group or sort if needed, here we just show them
+            const routines = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(item => {
+                    const itemSem = String(item.semester || "").replace(/sem\s*/i, "").trim();
+                    const targetSem = String(selection.semester || "").replace(/sem\s*/i, "").trim();
+                    const itemSec = String(item.section || "").replace(/sec\s*/i, "").trim();
+                    const targetSec = String(selection.section || "").replace(/sec\s*/i, "").trim();
+                    
+                    const semMatch = !itemSem || !targetSem || itemSem === targetSem;
+                    const secMatch = !itemSec || !targetSec || itemSec === targetSec;
+                    return semMatch && secMatch;
+                });
             setExistingRoutines(routines);
             setLoadingExisting(false);
         }, (err) => {
@@ -79,8 +100,7 @@ const AdminRoutineUploader = () => {
         return () => unsubscribe();
     }, [selection]);
 
-    const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
+    const processSelectedFile = (selectedFile) => {
         if (selectedFile) {
             setFile(selectedFile);
             const reader = new FileReader();
@@ -90,6 +110,54 @@ const AdminRoutineUploader = () => {
             reader.readAsDataURL(selectedFile);
             setPreviewData(null);
             setStatus("idle");
+        }
+    };
+
+    useEffect(() => {
+        const handlePaste = (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.startsWith("image/") || item.type === "application/pdf") {
+                    const pastedFile = item.getAsFile();
+                    if (pastedFile) {
+                        e.preventDefault();
+                        processSelectedFile(pastedFile);
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, []);
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            processSelectedFile(e.target.files[0]);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processSelectedFile(e.dataTransfer.files[0]);
         }
     };
 
@@ -229,9 +297,11 @@ const AdminRoutineUploader = () => {
                                         onChange={(e) => setSelection({ ...selection, university: e.target.value })}
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-slate-200 appearance-none cursor-pointer"
                                     >
-                                        <option value="SVU">SVU</option>
-                                        <option value="Regent">Regent</option>
-                                        <option value="Others">Others</option>
+                                        {(academicConfig.universities || ["SVU", "Regent", "Others"]).map((uni) => (
+                                            <option key={uni} value={uni}>
+                                                {uni}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -246,14 +316,14 @@ const AdminRoutineUploader = () => {
                                     </div>
                                     <select
                                         value={selection.stream}
-                                        onChange={(e) => setSelection({ ...selection, stream: e.target.value })}
+                                        onChange={(e) => setSelection({ ...selection, stream: e.target.value, semester: "1", section: "1" })}
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-slate-200 appearance-none cursor-pointer"
                                     >
-                                        <option value="B.Tech">B.Tech</option>
-                                        <option value="BCA">BCA</option>
-                                        <option value="ANCS">ANCS</option>
-                                        <option value="DIPLOMA">DIPLOMA</option>
-                                        <option value="Other">Other</option>
+                                        {academicConfig.streams.map((st) => (
+                                            <option key={st.id} value={st.name}>
+                                                {st.name}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -269,10 +339,10 @@ const AdminRoutineUploader = () => {
                                         </div>
                                         <select
                                             value={selection.semester}
-                                            onChange={(e) => setSelection({ ...selection, semester: e.target.value })}
+                                            onChange={(e) => setSelection({ ...selection, semester: e.target.value, section: "1" })}
                                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-slate-200 appearance-none cursor-pointer"
                                         >
-                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sem {n}</option>)}
+                                            {availableSemesters.map(n => <option key={n} value={n}>Sem {n}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -289,7 +359,7 @@ const AdminRoutineUploader = () => {
                                             onChange={(e) => setSelection({ ...selection, section: e.target.value })}
                                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-slate-200 appearance-none cursor-pointer"
                                         >
-                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sec {n}</option>)}
+                                            {availableSections.map(n => <option key={n} value={n}>Sec {n}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -297,21 +367,31 @@ const AdminRoutineUploader = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-[2rem] p-6 border border-slate-200/80 dark:border-slate-700/80 shadow-xl">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <Upload size={20} />
+                            <div className="w-11 h-11 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 shadow-sm shrink-0">
+                                <Upload size={22} />
                             </div>
-                            <h3 className="font-bold text-slate-800 dark:text-white text-lg">Upload Image</h3>
+                            <div>
+                                <h3 className="font-extrabold text-slate-900 dark:text-white text-lg tracking-tight">Upload Routine Image</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select clear class timetable image for AI extraction.</p>
+                            </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             <div
-                                className={cn(
-                                    "border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer relative overflow-hidden",
-                                    file ? "border-emerald-300 bg-emerald-50/10" : "border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50/50"
-                                )}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
                                 onClick={() => document.getElementById('routine-upload').click()}
+                                className={cn(
+                                    "border-2 border-dashed rounded-[1.75rem] p-6 flex flex-col items-center justify-center transition-all cursor-pointer relative overflow-hidden group",
+                                    isDragging
+                                        ? "border-emerald-500 bg-emerald-100/60 dark:bg-emerald-950/60 ring-4 ring-emerald-500/20 scale-[1.02]"
+                                        : file 
+                                            ? "border-emerald-400/80 bg-emerald-50/30 dark:bg-emerald-950/20" 
+                                            : "border-slate-200 dark:border-slate-700 hover:border-emerald-400 hover:bg-emerald-50/20 dark:hover:bg-slate-900/40"
+                                )}
                             >
                                 <input
                                     type="file"
@@ -322,14 +402,23 @@ const AdminRoutineUploader = () => {
                                 />
 
                                 {imagePreview ? (
-                                    <img src={imagePreview} alt="Preview" className="max-h-48 rounded-xl shadow-md border border-white" />
+                                    <div className="relative group/img w-full flex items-center justify-center">
+                                        <img src={imagePreview} alt="Preview" className="max-h-56 sm:max-h-64 object-contain rounded-2xl shadow-lg border border-white dark:border-slate-700" />
+                                    </div>
                                 ) : (
                                     <>
-                                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:text-blue-500 transition-colors">
-                                            <Upload size={32} />
+                                        <div className={cn(
+                                            "w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-all shadow-sm",
+                                            isDragging 
+                                                ? "bg-emerald-500 text-white scale-110 animate-bounce" 
+                                                : "bg-emerald-50 dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 group-hover:scale-110"
+                                        )}>
+                                            <Upload size={28} />
                                         </div>
-                                        <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Click to upload routine image</p>
-                                        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-black">PNG, JPG up to 5MB</p>
+                                        <p className="text-sm font-extrabold text-slate-700 dark:text-slate-200 text-center">
+                                            {isDragging ? "Drop your image file here!" : "Drag & Drop, Paste (Ctrl+V) or Click to upload"}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">PNG, JPG up to 5MB</p>
                                     </>
                                 )}
                             </div>
@@ -338,34 +427,37 @@ const AdminRoutineUploader = () => {
                                 <button
                                     disabled={!file || loading}
                                     onClick={handleUploadAndParse}
-                                    className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-70 disabled:grayscale"
+                                    className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50 disabled:grayscale"
                                 >
                                     {loading ? (
                                         <Loader inline size="sm" />
                                     ) : (
-                                        <Sparkles size={20} className="text-blue-200" />
+                                        <Sparkles size={18} className="text-blue-200" />
                                     )}
-                                    <span>{loading ? "AI is Scanning..." : "Scan with Gemini"}</span>
+                                    <span>{loading ? "AI Vision Scanning..." : "Scan Schedule with AI"}</span>
                                 </button>
                             ) : (
-                                <div className="flex gap-3">
+                                <div className="flex items-center gap-3 w-full pt-1">
                                     <button
+                                        type="button"
                                         onClick={() => {
                                             setFile(null);
                                             setPreviewData(null);
                                             setImagePreview(null);
                                             setStatus("idle");
                                         }}
-                                        className="flex-1 px-6 py-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold hover:bg-slate-200 transition-all active:scale-95"
+                                        className="flex-1 h-12 px-4 bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-xs sm:text-sm transition-all active:scale-95 border border-slate-200/80 dark:border-slate-600/80 flex items-center justify-center gap-1.5 whitespace-nowrap shadow-sm"
                                     >
-                                        Reset
+                                        <RotateCcw size={15} />
+                                        <span>Reset</span>
                                     </button>
                                     <button
+                                        type="button"
                                         onClick={handleSaveToDb}
                                         disabled={loading}
-                                        className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-70"
+                                        className="flex-[2] h-12 px-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-black text-xs sm:text-sm tracking-wide transition-all shadow-lg shadow-emerald-600/25 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
                                     >
-                                        {loading ? <Loader inline size="sm" /> : <Check size={20} />}
+                                        {loading ? <Loader inline size="sm" /> : <Check size={18} />}
                                         <span>Publish Routine</span>
                                     </button>
                                 </div>
