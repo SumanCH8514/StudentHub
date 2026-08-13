@@ -25,7 +25,6 @@ import {
 import demoQuestions from "../../assets/json/demoQuestions.json";
 import Loader from "../Loader.jsx";
 
-const LOCAL_STORAGE_QA_KEY = "studenthub_admin_custom_qa";
 
 const AdminAssistantQA = () => {
     const [qaList, setQaList] = useState([]);
@@ -47,11 +46,6 @@ const AdminAssistantQA = () => {
 
     const fetchQA = async () => {
         setLoading(true);
-        let localCustom = [];
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_QA_KEY);
-            if (stored) localCustom = JSON.parse(stored);
-        } catch (_) {}
 
         let firestoreItems = [];
         try {
@@ -61,9 +55,6 @@ const AdminAssistantQA = () => {
             });
         } catch (_) {}
 
-        // Combine custom items (prefer Firestore if available, otherwise local)
-        const customItems = firestoreItems.length > 0 ? firestoreItems : localCustom;
-
         const defaultItems = demoQuestions.map((q, idx) => ({
             id: `default-${idx}`,
             question: q.question,
@@ -72,7 +63,7 @@ const AdminAssistantQA = () => {
             isCustom: false
         }));
 
-        setQaList([...customItems, ...defaultItems]);
+        setQaList([...firestoreItems, ...defaultItems]);
         setLoading(false);
     };
 
@@ -85,31 +76,8 @@ const AdminAssistantQA = () => {
         if (!question.trim() || !answer.trim()) return;
         setIsSaving(true);
 
-        const newItem = {
-            id: editingItem?.id || `custom-${Date.now()}`,
-            question: question.trim(),
-            answer: answer.trim(),
-            category: category,
-            isCustom: true,
-            updatedAt: new Date().toISOString()
-        };
-
-        // Save to LocalStorage immediately
         try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_QA_KEY);
-            const existing = stored ? JSON.parse(stored) : [];
-            let updatedList;
-            if (editingItem && editingItem.isCustom) {
-                updatedList = existing.map(i => i.id === editingItem.id ? newItem : i);
-            } else {
-                updatedList = [newItem, ...existing.filter(i => i.id !== newItem.id)];
-            }
-            localStorage.setItem(LOCAL_STORAGE_QA_KEY, JSON.stringify(updatedList));
-        } catch (_) {}
-
-        // Attempt Firestore sync silently
-        try {
-            if (editingItem && editingItem.isCustom && !editingItem.id.startsWith("custom-")) {
+            if (editingItem && editingItem.isCustom && !editingItem.id.startsWith("default-")) {
                 await updateDoc(doc(db, "custom_qa", editingItem.id), {
                     question: question.trim(),
                     answer: answer.trim(),
@@ -124,9 +92,12 @@ const AdminAssistantQA = () => {
                     createdAt: serverTimestamp()
                 });
             }
-        } catch (_) {}
+            showNotify(editingItem ? "Q&A updated successfully!" : "New Q&A pair added to Knowledge Base!");
+        } catch (err) {
+            console.error("Failed to save Q&A to database:", err);
+            showNotify("Failed to save Q&A pair to database.", "error");
+        }
 
-        showNotify(editingItem ? "Q&A updated successfully!" : "New Q&A pair added to Knowledge Base!");
         setModalOpen(false);
         setEditingItem(null);
         setQuestion("");
@@ -142,25 +113,14 @@ const AdminAssistantQA = () => {
         }
         if (!window.confirm("Are you sure you want to delete this Q&A entry?")) return;
 
-        // Delete from LocalStorage
         try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_QA_KEY);
-            if (stored) {
-                const existing = JSON.parse(stored);
-                const filtered = existing.filter(i => i.id !== item.id);
-                localStorage.setItem(LOCAL_STORAGE_QA_KEY, JSON.stringify(filtered));
-            }
-        } catch (_) {}
-
-        // Delete from Firestore silently
-        try {
-            if (!item.id.startsWith("custom-")) {
-                await deleteDoc(doc(db, "custom_qa", item.id));
-            }
-        } catch (_) {}
-
-        setQaList((prev) => prev.filter((i) => i.id !== item.id));
-        showNotify("Q&A pair deleted.");
+            await deleteDoc(doc(db, "custom_qa", item.id));
+            setQaList((prev) => prev.filter((i) => i.id !== item.id));
+            showNotify("Q&A pair deleted from database.");
+        } catch (err) {
+            console.error("Failed to delete Q&A from database:", err);
+            showNotify("Failed to delete Q&A pair.", "error");
+        }
     };
 
     const categories = ["all", "General", "Schedule", "Holidays", "Exams", "Campus", "System Default"];

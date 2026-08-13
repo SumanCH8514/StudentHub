@@ -59,6 +59,7 @@ import AdminPanel from "./AdminPanel.jsx";
 import Settings from "./Settings.jsx";
 import Support from "./Support.jsx";
 import Assistant from "./Assistant.jsx";
+import StudentDashboard from "./StudentDashboard.jsx";
 import Loader from "./Loader.jsx";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -99,80 +100,97 @@ const parseTimeStr = (timeStr, baseDate) => {
   return date;
 };
 
-// --- Hash-Based Routing Logic ---
-const getRouteFromHash = () => {
-  const hash = window.location.hash.replace("#", "");
-  if (!hash) return { view: "dashboard" };
+const parseUrlPath = () => {
+  const path = window.location.pathname.replace(/\/$/, "");
+  const segments = path.split("/").filter(Boolean);
+  const lastSegment = segments[segments.length - 1] || "";
+  const sub = lastSegment.toLowerCase();
 
-  const validViews = ["dashboard", "admin", "assistant", "uploader", "support"];
-  if (hash === "user-dashboard") return { view: "dashboard" }; // Keep for backward compatibility
-  if (hash === "admin-") return { view: "admin" };
-  if (hash === "ai-assistant") return { view: "assistant" };
-  if (hash === "support-history") return { view: "support", tab: "history" };
-
-  const tabMap = {
-    "my-profile": "profile",
-    "academic-info": "academic",
-    "preferences": "preferences",
-    "security-data": "security",
-    "check-results": "results",
-    "upload-routine": "upload",
-    "exam-time-routine": "exam",
-    "holiday-list": "holidays",
-    "study-materials": "materials",
-    "question-papers": "papers",
-    "attendance": "attendance",
-    "chat": "chat",
-    "college-forms": "forms",
+  const settingsMap = {
+    dashboard: "dashboard",
+    profile: "profile",
+    academic_profile: "academic",
+    academic: "academic",
+    results: "results",
+    check_results: "results",
+    upload: "upload",
+    upload_routine: "upload",
+    exam_routine: "exam",
+    exam: "exam",
+    holiday_list: "holidays",
+    holidays: "holidays",
+    study_materials: "materials",
+    materials: "materials",
+    question_papers: "papers",
+    papers: "papers",
+    attendance: "attendance",
+    chat: "chat",
+    college_forms: "forms",
+    forms: "forms",
+    services: "services",
+    security: "security",
+    preferences: "preferences",
   };
 
-  if (tabMap[hash]) {
-    return { view: "settings", tab: tabMap[hash] };
+  if (settingsMap[sub]) {
+    return { view: "settings", tab: settingsMap[sub] };
   }
 
-  if (validViews.includes(hash)) return { view: hash };
-  return null;
+  if (sub === "assistant" || sub === "ai_assistant") {
+    return { view: "assistant", tab: "assistant" };
+  }
+
+  if (sub === "admin") {
+    return { view: "admin", tab: "admin" };
+  }
+
+  if (sub === "support") {
+    return { view: "support", tab: "submit" };
+  }
+
+  return { view: "dashboard", tab: "dashboard" };
 };
 
-const getHashFromRoute = (currentView, currentTab) => {
-  if (currentView === "dashboard") return "";
-  if (currentView === "admin") return window.location.hash;
-  if (currentView === "assistant") return "#ai-assistant";
-  if (currentView === "uploader") return "#uploader";
-  if (currentView === "support") {
-    return currentTab === "history" ? "#support-history" : "#support";
+const buildUrlPath = (view, tab) => {
+  if (view === "dashboard") {
+    return "/routine/";
   }
-  if (currentView === "settings") {
-    const reverseTabMap = {
-      profile: "my-profile",
-      academic: "academic-info",
-      preferences: "preferences",
-      security: "security-data",
-      results: "check-results",
-      upload: "upload-routine",
-      exam: "exam-time-routine",
-      holidays: "holiday-list",
-      materials: "study-materials",
-      papers: "question-papers",
-      attendance: "attendance",
-      chat: "chat",
-      forms: "college-forms",
+
+  if (view === "assistant") return "/routine/Assistant";
+  if (view === "admin") return "/routine/Admin";
+  if (view === "support") return "/routine/Support";
+
+  if (view === "settings" || view === "student-dashboard") {
+    const tabMap = {
+      dashboard: "/routine/Dashboard",
+      profile: "/routine/Profile",
+      academic: "/routine/Academic_Profile",
+      results: "/routine/Results",
+      upload: "/routine/Upload",
+      exam: "/routine/Exam_Routine",
+      holidays: "/routine/Holiday_List",
+      materials: "/routine/Study_Materials",
+      papers: "/routine/Question_Papers",
+      attendance: "/routine/Attendance",
+      chat: "/routine/Chat",
+      forms: "/routine/College_Forms",
+      services: "/routine/Services",
+      security: "/routine/Security",
+      preferences: "/routine/Preferences",
     };
-    return `#${reverseTabMap[currentTab] || currentTab}`;
+    return tabMap[tab] || `/routine/${tab}`;
   }
-  return "";
+
+  return "/routine/";
 };
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const initialRoute = getRouteFromHash();
+  const initialRoute = parseUrlPath();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUploader, setShowUploader] = useState(false);
-  const [view, setView] = useState(() => {
-    if (initialRoute) return initialRoute.view;
-    return localStorage.getItem("currentView") || "dashboard";
-  });
+  const [view, setView] = useState(initialRoute.view);
   const [userRole, setUserRole] = useState("user");
   const [userName, setUserName] = useState("Student");
   const [userPhoto, setUserPhoto] = useState(null);
@@ -260,53 +278,30 @@ const Dashboard = () => {
     setShowPwaModal(true);
   };
 
-  // Deep linking for settings
-  const [settingsConfig, setSettingsConfig] = useState(() => {
-    if (initialRoute && initialRoute.view === "settings" && initialRoute.tab) {
-      return { tab: initialRoute.tab, forceSidebar: false };
-    }
-    const saved = localStorage.getItem("currentSettingsConfig");
-    return saved ? JSON.parse(saved) : { tab: "profile", forceSidebar: false };
-  });
+  const [settingsConfig, setSettingsConfig] = useState({ tab: initialRoute.tab, forceSidebar: false });
 
-  // Persist view changes and sync hash
   useEffect(() => {
     localStorage.setItem("currentView", view);
+    localStorage.setItem("currentSettingsConfig", JSON.stringify(settingsConfig));
 
-    const hash = getHashFromRoute(view, view === "support" ? supportTab : settingsConfig.tab);
-    if (window.location.hash !== hash) {
-      if (hash === "") {
-        // Use replaceState to clear hash without leaving a trailing "#"
-        window.history.replaceState(null, "", window.location.pathname);
-      } else {
-        window.location.hash = hash;
-      }
+    const targetPath = buildUrlPath(view, view === "support" ? supportTab : settingsConfig.tab);
+    if (window.location.pathname !== targetPath || window.location.hash) {
+      window.history.replaceState(null, "", targetPath);
     }
   }, [view, settingsConfig.tab, supportTab]);
 
-  // Handle hash changes (e.g., back/forward buttons or manual hash edit)
   useEffect(() => {
-    const handleHashChange = () => {
-      const route = getRouteFromHash();
-      if (route) {
-        if (route.tab) {
-          if (route.view === "settings") setSettingsConfig({ tab: route.tab, forceSidebar: false });
-          if (route.view === "support") setSupportTab(route.tab);
-        }
-        setView(route.view);
-      }
+    const handlePopState = () => {
+      const parsed = parseUrlPath();
+      setView(parsed.view);
+      setSettingsConfig({ tab: parsed.tab, forceSidebar: false });
     };
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Persist settingsConfig changes (localStorage sync only)
-  useEffect(() => {
-    localStorage.setItem("currentSettingsConfig", JSON.stringify(settingsConfig));
-  }, [settingsConfig]);
-
-  const handleOpenSettings = (tab = "profile", forceSidebar = false) => {
+  const handleOpenSettings = (tab = "dashboard", forceSidebar = false) => {
     setSettingsConfig({ tab, forceSidebar });
     setView("settings");
     setIsSidebarOpen(false);
@@ -446,86 +441,83 @@ const Dashboard = () => {
     let unsubscribeUpdates = null;
     let unsubscribeExams = null;
 
-    const fetchUserAndClasses = async () => {
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUserData(data);
-          setUserRole(data.role || "user");
-          setUserName(
-            data.fullName || data.name || user.displayName || "Student",
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribeUser = onSnapshot(userDocRef, (userDoc) => {
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserData(data);
+        setUserRole(data.role || "user");
+        setUserName(
+          data.fullName || data.name || user.displayName || "Student",
+        );
+        setUserPhoto(data.photoBase64 || null);
+        setFetchShared(data.fetchShared ?? false);
+
+        const isBlankVal = (val) => !val || String(val).trim() === "" || String(val).trim() === "undefined" || String(val).trim() === "null";
+        const hasAllAcademicFields = !isBlankVal(data.university) && !isBlankVal(data.stream) && !isBlankVal(data.semester) && !isBlankVal(data.section);
+
+        if (!hasAllAcademicFields && data.academicProfileCompleted !== true) {
+          setAcademicData({
+            university: isBlankVal(data.university) ? "SVU" : data.university,
+            customUniversity: data.customUniversity || "",
+            stream: isBlankVal(data.stream) ? "B.Tech" : data.stream,
+            customStream: data.customStream || "",
+            semester: isBlankVal(data.semester) ? "1" : String(data.semester),
+            section: isBlankVal(data.section) ? "1" : String(data.section),
+            rollNumber: data.rollNo || data.rollNumber || "",
+          });
+          if (!sessionStorage.getItem("studenthub_skipped_academic_modal")) {
+            setShowAcademicModal(true);
+          }
+        }
+
+        const isDark =
+          data.themePreference === "dark" ||
+          (data.themePreference === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+        setIsDarkMode(isDark);
+        if (isDark) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+
+        const { university, stream, semester, section } = data;
+
+        if (unsubscribeClasses) unsubscribeClasses();
+        if (university && stream && semester && section) {
+          const sharedRoutinesRef = collection(db, "shared_routines");
+          let q = query(
+            sharedRoutinesRef,
+            where("university", "==", university),
+            where("stream", "==", stream),
+            where("semester", "==", semester),
+            where("section", "==", section),
           );
-          setUserPhoto(data.photoBase64 || null);
-          setFetchShared(data.fetchShared ?? false);
 
-          const isBlankVal = (val) => !val || String(val).trim() === "" || String(val).trim() === "undefined" || String(val).trim() === "null";
-          const hasAllAcademicFields = !isBlankVal(data.university) && !isBlankVal(data.stream) && !isBlankVal(data.semester) && !isBlankVal(data.section);
-
-          if (!hasAllAcademicFields && data.academicProfileCompleted !== true) {
-            setAcademicData({
-              university: isBlankVal(data.university) ? "SVU" : data.university,
-              customUniversity: data.customUniversity || "",
-              stream: isBlankVal(data.stream) ? "B.Tech" : data.stream,
-              customStream: data.customStream || "",
-              semester: isBlankVal(data.semester) ? "1" : String(data.semester),
-              section: isBlankVal(data.section) ? "1" : String(data.section),
-              rollNumber: data.rollNo || data.rollNumber || "",
-            });
-            if (!sessionStorage.getItem("studenthub_skipped_academic_modal")) {
-              setShowAcademicModal(true);
-            }
+          if (!(data.fetchShared ?? false)) {
+            q = query(q, where("userId", "==", user.uid));
           }
 
-          // Apply user theme preference
-          const isDark =
-            data.themePreference === "dark" ||
-            (data.themePreference === "system" &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          unsubscribeClasses = onSnapshot(
+            q,
+            (snapshot) => {
+              setClasses(
+                snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+              );
+              setLoading(false);
+            },
+            (error) => {
+              console.error("Error fetching shared routines:", error);
+              setLoading(false);
+            },
+          );
+        } else {
+          setLoading(false);
+        }
 
-          setIsDarkMode(isDark);
-          if (isDark) {
-            document.documentElement.classList.add("dark");
-          } else {
-            document.documentElement.classList.remove("dark");
-          }
-
-          // Shared Routing logic: Fetch from shared_routines filtered by profile
-          const { university, stream, semester, section } = data;
-
-          if (university && stream && semester && section) {
-            const sharedRoutinesRef = collection(db, "shared_routines");
-            let q = query(
-              sharedRoutinesRef,
-              where("university", "==", university),
-              where("stream", "==", stream),
-              where("semester", "==", semester),
-              where("section", "==", section),
-            );
-
-            // If fetchShared is false, only fetch the user's own uploads
-            if (!(data.fetchShared ?? false)) {
-              q = query(q, where("userId", "==", user.uid));
-            }
-
-            unsubscribeClasses = onSnapshot(
-              q,
-              (snapshot) => {
-                setClasses(
-                  snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
-                );
-                setLoading(false);
-              },
-              (error) => {
-                console.error("Error fetching shared routines:", error);
-                setLoading(false);
-              },
-            );
-          } else {
-            setLoading(false);
-          }
-
-          // Fetch Holidays
+        if (!unsubscribeHolidays) {
           const holidaysRef = collection(db, "holidays");
           const qHolidays = query(holidaysRef, orderBy("date", "asc"));
           unsubscribeHolidays = onSnapshot(
@@ -541,21 +533,20 @@ const Dashboard = () => {
               }
             }
           );
+        }
 
-          if (data.readUpdates) {
-            setReadUpdates(data.readUpdates);
-          }
+        if (data.readUpdates) {
+          setReadUpdates(data.readUpdates);
+        }
 
-          // Fetch System Updates (Targeted)
+        if (!unsubscribeUpdates) {
           const updatesRef = collection(db, "updates");
           const qUpdates = query(updatesRef, orderBy("createdAt", "desc"));
           unsubscribeUpdates = onSnapshot(
             qUpdates,
             (snapshot) => {
               const allUpdates = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-              // Filter logic: Match university, stream, and semester
               const filtered = allUpdates.filter(update => {
-                // Personal notifications for specific user - MUST match uid
                 if (update.targetUserId) {
                   return update.targetUserId === user.uid;
                 }
@@ -573,9 +564,7 @@ const Dashboard = () => {
                 return matchesUni && matchesStream && matchesSem && matchesSec;
               });
               setSystemUpdates((prev) => {
-                // Keep only the today's exam updates (which we preserve) and replace the rest with new fetched
                 const examUpdates = prev.filter(u => u.isTodayExam);
-                // Also sort nicely
                 return [...examUpdates, ...filtered].sort((a, b) => {
                   const timeA = a.createdAt?.seconds || 0;
                   const timeB = b.createdAt?.seconds || 0;
@@ -591,74 +580,66 @@ const Dashboard = () => {
               }
             }
           );
-
-          // Fetch Exam Routines for "Today's Exam" Notifications
-          if (data.university && data.stream && data.semester) {
-            const examsRef = collection(db, "exam_routines");
-            const qExams = query(
-              examsRef,
-              where("university", "==", data.university),
-              where("stream", "==", data.stream),
-              where("semester", "==", data.semester)
-            );
-
-            unsubscribeExams = onSnapshot(qExams, (snapshot) => {
-              const todayStr = new Date().toISOString().split('T')[0];
-              const todaysExams = [];
-
-              snapshot.docs.forEach(docSnap => {
-                const exam = docSnap.data();
-                // Convert exam string date like "2024-05-20" or similar to standard format if needed
-                // We assume string dates like "24-05-2024" or standard "YYYY-MM-DD"
-                // For robust checking we format today
-                const y = new Date().getFullYear();
-                const m = String(new Date().getMonth() + 1).padStart(2, '0');
-                const d = String(new Date().getDate()).padStart(2, '0');
-                const ymdStr = `${y}-${m}-${d}`;
-                const reversemdy = `${d}-${m}-${y}`;
-                const shortmdy = `${d}/${m}/${y}`;
-
-                if (exam.date === ymdStr || exam.date === reversemdy || exam.date === shortmdy ||
-                  new Date(exam.date).toDateString() === new Date().toDateString()) {
-
-                  todaysExams.push({
-                    id: `exam-${docSnap.id}`,
-                    title: `Exam Alert: ${exam.subject}`,
-                    description: `You have a ${exam.examType || 'Exam'} today for ${exam.subject} at ${exam.time}. Best of luck!`,
-                    type: "alert",
-                    isTodayExam: true,
-                    createdAt: { seconds: Math.floor(Date.now() / 1000) } // force to top
-                  });
-                }
-              });
-
-              setSystemUpdates(prev => {
-                const nonExamUpdates = prev.filter(u => !u.isTodayExam);
-                // Push exams to top
-                return [...todaysExams, ...nonExamUpdates];
-              });
-
-            }, (error) => {
-              console.error("Error fetching exams for notifications:", error);
-            });
-          }
-        } else {
-          setUserName(user.displayName || "Student");
-          setShowAcademicModal(true);
-          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+
+        if (!unsubscribeExams && data.university && data.stream && data.semester) {
+          const examsRef = collection(db, "exam_routines");
+          const qExams = query(
+            examsRef,
+            where("university", "==", data.university),
+            where("stream", "==", data.stream),
+            where("semester", "==", data.semester)
+          );
+
+          unsubscribeExams = onSnapshot(qExams, (snapshot) => {
+            const todaysExams = [];
+
+            snapshot.docs.forEach(docSnap => {
+              const exam = docSnap.data();
+              const y = new Date().getFullYear();
+              const m = String(new Date().getMonth() + 1).padStart(2, '0');
+              const d = String(new Date().getDate()).padStart(2, '0');
+              const ymdStr = `${y}-${m}-${d}`;
+              const reversemdy = `${d}-${m}-${y}`;
+              const shortmdy = `${d}/${m}/${y}`;
+
+              if (exam.date === ymdStr || exam.date === reversemdy || exam.date === shortmdy ||
+                new Date(exam.date).toDateString() === new Date().toDateString()) {
+
+                todaysExams.push({
+                  id: `exam-${docSnap.id}`,
+                  title: `Exam Alert: ${exam.subject}`,
+                  description: `You have a ${exam.examType || 'Exam'} today for ${exam.subject} at ${exam.time}. Best of luck!`,
+                  type: "alert",
+                  isTodayExam: true,
+                  createdAt: { seconds: Math.floor(Date.now() / 1000) }
+                });
+              }
+            });
+
+            setSystemUpdates(prev => {
+              const nonExamUpdates = prev.filter(u => !u.isTodayExam);
+              return [...todaysExams, ...nonExamUpdates];
+            });
+
+          }, (error) => {
+            console.error("Error fetching exams for notifications:", error);
+          });
+        }
+      } else {
+        setUserName(user.displayName || "Student");
+        setShowAcademicModal(true);
         setLoading(false);
       }
-    };
+    }, (error) => {
+      console.error("Error listening to user doc:", error);
+      setLoading(false);
+    });
 
-    fetchUserAndClasses();
-
-    // Refresh current time every 30 seconds for higher accuracy
-    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
     return () => {
+      if (unsubscribeUser) unsubscribeUser();
       if (unsubscribeClasses) unsubscribeClasses();
       if (unsubscribeHolidays) unsubscribeHolidays();
       if (unsubscribeUpdates) unsubscribeUpdates();
@@ -1006,7 +987,7 @@ const Dashboard = () => {
       }, 100);
       return () => clearTimeout(timeoutId);
     }
-  }, [filteredClasses.length, currentClass?.subject, nextClass?.subject]);
+  }, [filteredClasses.length, currentClass?.subject, currentClass?.status, nextClass?.subject, currentTime.getMinutes()]);
 
   // Handle notification click
   const handleNotificationClick = (update) => {
@@ -1048,6 +1029,7 @@ const Dashboard = () => {
         initialTab={settingsConfig.tab}
         showMobileSidebar={settingsConfig.forceSidebar}
         onTabChange={handleSettingsTabChange}
+        onNavigateView={(v) => setView(v)}
         classes={classes}
       />
     );
@@ -1068,6 +1050,23 @@ const Dashboard = () => {
 
   if (view === "assistant") {
     return <Assistant classes={classes} holidays={holidays} userData={userData} systemUpdates={systemUpdates} readUpdates={readUpdates} onBack={() => setView("dashboard")} />;
+  }
+
+  if (view === "student-dashboard") {
+    return (
+      <Settings
+        onBack={() => setView("dashboard")}
+        onSync={() => {
+          setView("dashboard");
+          setShowUploader(true);
+        }}
+        initialTab="dashboard"
+        showMobileSidebar={false}
+        onTabChange={handleSettingsTabChange}
+        onNavigateView={(v) => setView(v)}
+        classes={filteredClasses}
+      />
+    );
   }
 
 
@@ -1143,10 +1142,9 @@ const Dashboard = () => {
                   <img src={defaultProfileImg} alt="Default Profile" className="w-full h-full object-cover" />
                 )}
               </div>
-
               {/* Gear icon */}
               <button
-                onClick={() => { setView("settings"); setIsSidebarOpen(false); }}
+                onClick={() => { handleOpenSettings("preferences"); setIsSidebarOpen(false); }}
                 className="absolute top-3 right-4 text-slate-300 hover:text-indigo-500 transition-colors"
                 title="Settings"
               >
@@ -1207,7 +1205,7 @@ const Dashboard = () => {
               )}
 
               <button
-                onClick={() => handleOpenSettings("profile", true)}
+                onClick={() => { handleOpenSettings("dashboard"); setIsSidebarOpen(false); }}
                 className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-white/60 transition-all active:scale-[0.98]"
               >
                 <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
@@ -1345,73 +1343,73 @@ const Dashboard = () => {
         </aside>
       </div>
 
-      <div className="relative z-10 w-full px-4 py-6 sm:px-6 md:px-10 lg:px-16 xl:px-24">
+      <div className="relative z-10 w-full px-3 py-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
         {/* Floating Pill Header */}
-        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-2.5 sm:px-6 sm:py-4 rounded-full sm:rounded-[2.5rem] shadow-xl sm:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
+        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3 py-2 sm:px-5 sm:py-3 rounded-full sm:rounded-[2.5rem] shadow-xl sm:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 w-full max-w-full">
           {/* Left: Branding */}
-          <div className="flex items-center gap-3 pl-1 sm:pl-2 shrink-0">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-[0.9rem] sm:rounded-[1.1rem] overflow-hidden shadow-md shrink-0 flex items-center justify-center">
+          <div className="flex items-center gap-2 sm:gap-3 pl-1 shrink-0">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-[0.8rem] sm:rounded-[1rem] overflow-hidden shadow-md shrink-0 flex items-center justify-center">
               <img src={favLogo} alt="StudentHub Logo" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[24px] sm:text-[30px] font-black tracking-tighter text-[#1e1b4b] dark:text-white leading-none flex items-baseline">
+            <div className="text-xl sm:text-2xl font-black tracking-tighter text-[#1e1b4b] dark:text-white leading-none flex items-baseline">
               Student<span className="text-indigo-600 dark:text-indigo-400">Hub</span>
             </div>
           </div>
 
-          <div className="hidden md:flex flex-1 max-w-xl mx-4 lg:mx-8 shrink">
+          <div className="hidden lg:flex flex-1 max-w-md mx-4 shrink">
             <div className="relative w-full group">
-              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                <Search size={20} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" strokeWidth={2.5} />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" strokeWidth={2.5} />
               </div>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-20 py-4 bg-indigo-50/40 dark:bg-indigo-950/20 border-2 border-transparent focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 shadow-[inset_0_2px_8px_rgba(79,70,229,0.05)] text-slate-700 dark:text-slate-200 font-bold placeholder-slate-400 text-[13px] transition-all"
-                placeholder="Search for classes, teachers or ask any Questions related to StudentHub"
+                className="w-full pl-11 pr-16 py-3 bg-indigo-50/40 dark:bg-indigo-950/20 border-2 border-transparent focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 rounded-[1.2rem] focus:ring-4 focus:ring-indigo-500/10 shadow-[inset_0_2px_8px_rgba(79,70,229,0.05)] text-slate-700 dark:text-slate-200 font-bold placeholder-slate-400 text-xs transition-all"
+                placeholder="Search classes, teachers or ask AI..."
               />
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-rose-500 transition-all active:scale-90"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-500 transition-all active:scale-90"
                     title="Clear search"
                   >
-                    <X size={18} />
+                    <X size={16} />
                   </button>
                 )}
                 <button
                   onClick={handleVoiceSearch}
                   className={cn(
-                    "p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-500 transition-all active:scale-90",
+                    "p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-500 transition-all active:scale-90",
                     isListening && "text-rose-500 bg-rose-50 dark:bg-rose-900/20 animate-pulse"
                   )}
                   title={isListening ? "Listening..." : "Voice Search"}
                 >
-                  <Mic size={18} />
+                  <Mic size={16} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2 sm:gap-3 pr-0.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {userRole === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
-                className="hidden sm:flex items-center gap-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-5 py-3 rounded-full hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all font-black uppercase tracking-widest text-[10px]"
+                className="hidden xl:flex items-center gap-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-4 py-2.5 rounded-full hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all font-black uppercase tracking-widest text-[10px]"
               >
-                <ShieldAlert size={16} />
+                <ShieldAlert size={14} />
                 <span>Admin Panel</span>
               </button>
             )}
             {!fetchShared && (
               <button
                 onClick={() => setShowUploader(true)}
-                className="hidden sm:flex items-center gap-2 bg-[#0f172a] hover:bg-indigo-600 text-white px-6 py-3 rounded-full font-black text-sm transition-all shadow-md active:scale-95"
+                className="hidden xl:flex items-center gap-1.5 bg-[#0f172a] hover:bg-indigo-600 text-white px-4 py-2.5 rounded-full font-black text-xs transition-all shadow-md active:scale-95"
               >
-                <PlusCircle size={18} />
-                <span className="hidden sm:inline">Sync</span>
+                <PlusCircle size={16} />
+                <span>Sync</span>
               </button>
             )}
             <div className="relative">
@@ -1532,7 +1530,7 @@ const Dashboard = () => {
               <Menu size={18} className="w-[18px] h-[18px]" />
             </button>
             <button
-              onClick={() => { setView("settings"); setIsNotificationsOpen(false); setIsProfileMenuOpen(false); }}
+              onClick={() => { handleOpenSettings("preferences"); setIsNotificationsOpen(false); setIsProfileMenuOpen(false); }}
               className="hidden sm:block p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600"
             >
               <SettingsIcon size={20} />
@@ -1584,7 +1582,16 @@ const Dashboard = () => {
 
                     <div className="p-2 flex flex-col">
                       <button
-                        onClick={() => { setView("settings"); setIsProfileMenuOpen(false); }}
+                        onClick={() => { handleOpenSettings("dashboard"); setIsProfileMenuOpen(false); }}
+                        className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all text-left w-full group font-bold"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center transition-colors">
+                          <LayoutDashboard size={16} className="text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        Student Dashboard
+                      </button>
+                      <button
+                        onClick={() => { handleOpenSettings("profile"); setIsProfileMenuOpen(false); }}
                         className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all text-left w-full group"
                       >
                         <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 flex items-center justify-center transition-colors">
@@ -1611,7 +1618,7 @@ const Dashboard = () => {
                         Support Portal
                       </button>
                       <button
-                        onClick={() => { setView("settings"); setIsProfileMenuOpen(false); }}
+                        onClick={() => { handleOpenSettings("preferences"); setIsProfileMenuOpen(false); }}
                         className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all text-left w-full group"
                       >
                         <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 flex items-center justify-center transition-colors">
@@ -1672,33 +1679,32 @@ const Dashboard = () => {
             </h2>
 
             {/* SLIDER HERO CARDS */}
-            <div className="relative w-full overflow-hidden rounded-[3rem] shadow-2xl shadow-indigo-500/20 group">
+            <div className="relative w-full bg-[#3e3488] dark:bg-indigo-950 rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-indigo-500/20 group">
 
-              {/* Left Arrow (Absolute positioning over the slider container) */}
+              {/* Left Arrow */}
               <button
-                className="flex absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full items-center justify-center shrink-0 shadow-lg hover:scale-105 transition-transform"
+                className="flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-11 sm:h-11 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-full items-center justify-center shrink-0 shadow-lg hover:scale-110 transition-transform border border-slate-200/80 dark:border-slate-700/80"
                 onClick={() => {
                   const slider = document.getElementById('hero-slider');
                   if (slider) slider.scrollBy({ left: -slider.clientWidth, behavior: 'smooth' });
                 }}
               >
-                <ArrowRight className="rotate-180 text-slate-400" size={20} />
+                <ArrowRight className="rotate-180 text-slate-700 dark:text-slate-200" size={16} />
               </button>
 
               <div
                 id="hero-slider"
-                className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 sm:gap-6 pb-4 -mb-4 px-1 items-stretch"
+                className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar w-full items-stretch"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {isAllClassesDone ? (
-                  <div className="group bg-[#3e3488] dark:bg-indigo-950 rounded-[3rem] p-6 sm:p-10 min-w-full flex-shrink-0 snap-center relative flex items-center justify-between transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.3)] min-h-[220px]">
-                    <div className="relative z-10 w-full bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[2.5rem] flex-1 p-8 sm:p-12 overflow-hidden backdrop-blur-sm border border-white/40 dark:border-white/10 text-center shadow-inner group-hover:bg-white/90 dark:group-hover:bg-slate-800/80 transition-colors duration-500">
-                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/noise-pattern-with-subtle-cross-lines.png')] opacity-[0.05] mix-blend-overlay"></div>
-                      <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight relative z-10 bg-clip-text text-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400 dark:from-emerald-400 dark:via-emerald-300 dark:to-emerald-200 transition-colors duration-500">
+                  <div className="group w-full min-w-full max-w-full flex-shrink-0 snap-center relative flex items-center justify-between p-3 sm:p-4 md:p-5">
+                    <div className="relative z-10 w-full bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[1.6rem] sm:rounded-[2.4rem] p-6 sm:p-10 text-center border border-white/40 dark:border-white/10 shadow-inner">
+                      <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400 dark:from-emerald-400 dark:via-emerald-300 dark:to-emerald-200">
                         Mission Completed 🎉
                       </h2>
-                      <p className="mt-4 text-[9px] md:text-sm font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 opacity-100 transform translate-y-0 transition-all duration-500">
-                        All classes are Done for today.
+                      <p className="mt-2 sm:mt-3 text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
+                        All classes completed today
                       </p>
                     </div>
                   </div>
@@ -1708,82 +1714,56 @@ const Dashboard = () => {
                     return (
                       <div
                         key={idx}
-                        className="group bg-[#3e3488] dark:bg-indigo-950 rounded-[3rem] p-4 sm:p-5 md:p-8 lg:p-10 min-w-full flex-shrink-0 snap-center relative flex flex-col items-stretch h-full transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.3)]"
+                        className="group w-full min-w-full max-w-full flex-shrink-0 snap-center relative flex flex-col p-3 sm:p-4 md:p-5"
                       >
-                        {/* Live Class Dynamic Background Glow on the dark outer box */}
                         {isLive && (
-                          <div className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-30 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient-xy transition-opacity duration-500 group-hover:opacity-40 rounded-[3rem]"></div>
+                          <div className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-30 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient-xy rounded-[2rem] sm:rounded-[3rem]"></div>
                         )}
 
-                        <div className="relative z-10 w-full h-full bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[2.5rem] flex-1 flex flex-col justify-center min-w-0 p-6 sm:p-8 md:p-10 lg:p-12 overflow-hidden backdrop-blur-sm border border-white/40 dark:border-white/10 shadow-inner group-hover:bg-white/90 dark:group-hover:bg-slate-800/80 transition-colors duration-500">
-                          {/* Subtle texture for inner card */}
-                          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/noise-pattern-with-subtle-cross-lines.png')] opacity-[0.05] mix-blend-overlay"></div>
+                        <div className="relative z-10 w-full h-full flex-1 flex flex-col justify-center bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[1.6rem] sm:rounded-[2.4rem] p-4 sm:p-6 md:p-8 border border-white/40 dark:border-white/10 shadow-inner">
+                          <div className="relative z-10 w-full px-5 sm:px-8 md:px-10 flex flex-col min-w-0">
 
-                          {/* Extra horizontal padding so arrows don't cover text */}
-                          <div className="relative z-10 w-full sm:px-6 md:px-10 lg:px-14 flex flex-col min-w-0">
-
-                            {/* Top Badge Row */}
-                            <div className="flex items-center justify-between gap-2 mb-4 md:mb-5">
+                            <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4 min-w-0">
                               {isLive ? (
-                                <div className="flex items-center gap-2 px-3 py-1 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-full shadow-sm">
+                                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-full shadow-sm shrink-0">
                                   <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                                   </span>
-                                  <span className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">
+                                  <span className="text-[9px] sm:text-[11px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">
                                     Live Now
                                   </span>
                                 </div>
                               ) : (
-                                <h3 className="font-bold text-[10px] md:text-[11px] uppercase tracking-widest text-slate-800 dark:text-indigo-200 bg-white/50 dark:bg-slate-800/50 px-3 py-1 border border-white/50 dark:border-slate-700/50 rounded-full h-[22px] flex items-center shrink-0">
+                                <h3 className="font-bold text-[9px] sm:text-[11px] uppercase tracking-widest text-slate-800 dark:text-indigo-200 bg-white/60 dark:bg-slate-800/60 px-2.5 sm:px-3 py-1 border border-white/50 dark:border-slate-700/50 rounded-full flex items-center shrink-0">
                                   {cls.status === "past" ? "Past Class" : "Upcoming Next"}
                                 </h3>
                               )}
 
-                              {/* Room badge in top row on mobile only */}
-                              <div className="sm:hidden flex items-center gap-1.5 px-3 py-1 bg-white/50 dark:bg-slate-800/50 border border-white/50 dark:border-slate-700/50 rounded-full text-slate-800 dark:text-indigo-200 shrink-0">
-                                <MapPin size={11} className="text-rose-500 dark:text-rose-400 shrink-0" />
-                                <span className="font-extrabold text-[10px] uppercase tracking-wider truncate max-w-[130px]">
+                              <div className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-slate-700/50 rounded-full text-slate-800 dark:text-indigo-200 shrink-0">
+                                <MapPin size={10} className="text-rose-500 dark:text-rose-400 shrink-0" />
+                                <span className="font-extrabold text-[8px] sm:text-[9.5px] md:text-[10.5px] uppercase tracking-wider whitespace-nowrap">
                                   {cls.room || cls.location || cls.roomNo ? `Room: ${cls.room || cls.location || cls.roomNo}` : "Room: N/A"}
                                 </span>
                               </div>
                             </div>
 
-                            {/* Subject Title with Gradient Text / Size explicitly requested as 18px mobile */}
-                            <h2 className="text-[18px] leading-[1.3] sm:text-[22px] md:text-[34px] lg:text-[42px] font-black tracking-tighter mb-4 md:mb-8 whitespace-normal line-clamp-3 md:line-clamp-none break-words bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400 transition-all duration-500">
+                            <h2 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-3 sm:mb-5 break-words bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400">
                               {cls.subject}
                             </h2>
 
-                            {/* Details Row (Time, Teacher & Room) */}
-                            <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:gap-8">
-                              <div className="flex items-center gap-3 group-hover:translate-x-1 transition-transform duration-500 ease-out">
-                                <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-indigo-400'}`}>
-                                  <Clock size={16} className="shrink-0 md:w-5 md:h-5" />
-                                </div>
-                                <span className="font-extrabold tracking-tight text-sm md:text-base text-slate-700 dark:text-indigo-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-500">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                              <div className="flex items-center gap-2 bg-white/70 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-white/60 dark:border-slate-700/60 shrink-0">
+                                <Clock size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                <span className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-indigo-100">
                                   {cls.time || (cls.startTime && cls.endTime ? `${cls.startTime} - ${cls.endTime}` : cls.startTime || "")}
                                 </span>
                               </div>
 
-                              <div className="hidden sm:block w-[1px] h-8 bg-slate-800/20 dark:bg-white/20 transition-colors duration-500 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"></div>
-
-                              <div className="flex items-center gap-3 min-w-0 group-hover:translate-x-1 transition-transform duration-500 ease-out delay-75">
-                                <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-purple-50 text-purple-500 dark:bg-purple-500/20 dark:text-purple-400 group-hover:bg-purple-100 dark:group-hover:bg-purple-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-purple-400'}`}>
-                                  <User size={16} className="shrink-0 md:w-5 md:h-5" />
-                                </div>
-                                <span className="font-bold text-sm md:text-base break-words whitespace-normal text-slate-700 dark:text-indigo-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-500">
+                              <div className="flex items-center gap-2 bg-white/70 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-white/60 dark:border-slate-700/60 shrink-0 max-w-full">
+                                <User size={14} className="text-purple-600 dark:text-purple-400 shrink-0" />
+                                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-indigo-100 truncate">
                                   {cls.teacher || cls.instructor || "N/A"}
-                                </span>
-                              </div>
-
-                              <div className="hidden sm:block w-[1px] h-8 bg-slate-800/20 dark:bg-white/20 transition-colors duration-500 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"></div>
-
-                              <div className="hidden sm:flex items-center gap-3 min-w-0 group-hover:translate-x-1 transition-transform duration-500 ease-out delay-100">
-                                <div className={`p-2 rounded-[0.6rem] transition-colors duration-500 ${isLive ? 'bg-rose-50 text-rose-500 dark:bg-rose-500/20 dark:text-rose-400 group-hover:bg-rose-100 dark:group-hover:bg-rose-500/30' : 'bg-white/50 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 group-hover:bg-white/80 dark:group-hover:text-rose-400'}`}>
-                                  <MapPin size={16} className="shrink-0 md:w-5 md:h-5" />
-                                </div>
-                                <span className="font-bold text-sm md:text-base break-words whitespace-normal text-slate-700 dark:text-indigo-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-500">
-                                  {cls.room || cls.location || cls.roomNo ? `Room: ${cls.room || cls.location || cls.roomNo}` : "Room: N/A"}
                                 </span>
                               </div>
                             </div>
@@ -1793,27 +1773,28 @@ const Dashboard = () => {
                     );
                   })
                 ) : (
-                  <div className="group bg-[#3e3488] dark:bg-indigo-950 rounded-[3rem] p-6 sm:p-10 min-w-full flex-shrink-0 snap-center relative flex items-center justify-between transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.3)] min-h-[220px]">
-                    <div className="relative z-10 w-full bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[2.5rem] flex-1 p-8 sm:p-12 overflow-hidden backdrop-blur-sm border border-white/40 dark:border-white/10 text-center shadow-inner group-hover:bg-white/90 dark:group-hover:bg-slate-800/80 transition-colors duration-500">
-                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/noise-pattern-with-subtle-cross-lines.png')] opacity-[0.05] mix-blend-overlay"></div>
+                  <div className="group w-full min-w-full max-w-full flex-shrink-0 snap-center relative flex items-center justify-between p-3 sm:p-4 md:p-5">
+                    <div className="relative z-10 w-full bg-[#bce4f5] dark:bg-indigo-900/60 rounded-[1.6rem] sm:rounded-[2.4rem] p-6 sm:p-10 text-center border border-white/40 dark:border-white/10 shadow-inner">
                       {activeHolidays.length > 0 ? (
                         <>
-                          <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight relative z-10 bg-clip-text text-transparent bg-gradient-to-br from-rose-600 via-rose-500 to-rose-400 dark:from-rose-400 dark:via-rose-300 dark:to-rose-200 transition-colors duration-500">
+                          <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-br from-rose-600 via-rose-500 to-rose-400 dark:from-rose-400 dark:via-rose-300 dark:to-rose-200">
                             No Class Today
                           </h2>
-                          <p className="mt-4 text-[9px] md:text-sm font-black uppercase tracking-[0.2em] text-rose-600 dark:text-rose-400 opacity-100 transform translate-y-0 transition-all duration-500">
+                          <p className="mt-2 sm:mt-3 text-[9.5px] md:text-sm font-black uppercase tracking-[0.2em] text-rose-600 dark:text-rose-400">
                             Due to {activeHolidays[0]?.occasion || "Holiday"}
                           </p>
                         </>
                       ) : loading ? (
-                        <Loader inline size="lg" message="Loading..." />
+                        <div className="flex flex-col items-center justify-center py-6">
+                          <Loader inline size="sm" message="Syncing timetable..." />
+                        </div>
                       ) : (
                         <>
-                          <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight relative z-10 bg-clip-text text-transparent bg-gradient-to-br from-indigo-600 via-indigo-500 to-indigo-400 dark:from-indigo-400 dark:via-indigo-300 dark:to-indigo-200 transition-colors duration-500">
-                            Enjoy your day!
+                          <h2 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-br from-indigo-600 via-indigo-500 to-indigo-400 dark:from-indigo-300 dark:via-indigo-200 dark:to-indigo-100">
+                            No Class Scheduled
                           </h2>
-                          <p className="mt-4 text-[9px] md:text-sm font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400 opacity-100 transform translate-y-0 transition-all duration-500">
-                            No classes are scheduled today
+                          <p className="mt-2 sm:mt-3 text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                            No classes today
                           </p>
                         </>
                       )}
@@ -1824,13 +1805,13 @@ const Dashboard = () => {
 
               {/* Right Arrow */}
               <button
-                className="flex absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full items-center justify-center shrink-0 shadow-lg hover:scale-105 transition-transform"
+                className="flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-11 sm:h-11 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-full items-center justify-center shrink-0 shadow-lg hover:scale-110 transition-transform border border-slate-200/80 dark:border-slate-700/80"
                 onClick={() => {
                   const slider = document.getElementById('hero-slider');
                   if (slider) slider.scrollBy({ left: slider.clientWidth, behavior: 'smooth' });
                 }}
               >
-                <ArrowRight className="text-slate-400" size={20} />
+                <ArrowRight className="text-slate-700 dark:text-slate-200" size={16} />
               </button>
             </div>
 

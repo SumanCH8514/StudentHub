@@ -51,7 +51,7 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
             }
-        } catch (_) {}
+        } catch (_) { }
         return [
             { id: 1, role: "assistant", content: "Hello! I'm your StudentHub AI assistant. How can I help you with your classes or schedule today?", timestamp: new Date() }
         ];
@@ -60,7 +60,7 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
     useEffect(() => {
         try {
             localStorage.setItem("studenthub_ai_chat_history", JSON.stringify(messages));
-        } catch (_) {}
+        } catch (_) { }
     }, [messages]);
     const [isTyping, setIsTyping] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -79,27 +79,18 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
         setCustomGeminiKey(val);
         try {
             localStorage.setItem("studenthub_custom_gemini_key", val.trim());
-        } catch (_) {}
+        } catch (_) { }
     };
 
-    const [selectedGeminiVoice, setSelectedGeminiVoice] = useState("Aoede");
-    const [useGeminiTts, setUseGeminiTts] = useState(true);
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
     const syncTimerRef = useRef(null);
-    const audioCtxRef = useRef(null);
-    const audioSourcesRef = useRef([]);
     const utteranceRef = useRef(null);
 
     const stopSpeaking = () => {
         if (syncTimerRef.current) {
             clearInterval(syncTimerRef.current);
             syncTimerRef.current = null;
-        }
-        audioSourcesRef.current.forEach(src => { try { src.stop(); } catch (_) {} });
-        audioSourcesRef.current = [];
-        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-            audioCtxRef.current.suspend().catch(() => {});
         }
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel();
@@ -136,20 +127,14 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                 console.error("Failed to fetch Gemini config:", err);
             }
 
-            let localItems = [];
-            try {
-                const stored = localStorage.getItem("studenthub_admin_custom_qa");
-                if (stored) localItems = JSON.parse(stored);
-            } catch (_) {}
-
             let firestoreItems = [];
             try {
                 const qaSnap = await getDocs(collection(db, "custom_qa"));
                 qaSnap.forEach(d => firestoreItems.push({ id: d.id, ...d.data() }));
-            } catch (_) {}
+            } catch (_) { }
 
             const mergedMap = new Map();
-            [...localItems, ...firestoreItems].forEach(item => {
+            firestoreItems.forEach(item => {
                 if (item && item.question && item.answer) {
                     const key = item.question.trim().toLowerCase();
                     mergedMap.set(key, item);
@@ -167,9 +152,9 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             const naturalVoiceIdx = availableVoices.findIndex(v =>
                 v.lang.toLowerCase().startsWith("en") &&
                 (v.name.toLowerCase().includes("natural") ||
-                 v.name.toLowerCase().includes("online") ||
-                 v.name.toLowerCase().includes("enhanced") ||
-                 v.name.toLowerCase().includes("neural"))
+                    v.name.toLowerCase().includes("online") ||
+                    v.name.toLowerCase().includes("enhanced") ||
+                    v.name.toLowerCase().includes("neural"))
             );
 
             if (naturalVoiceIdx !== -1) {
@@ -180,8 +165,8 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             const googleVoiceIdx = availableVoices.findIndex(v =>
                 v.lang.toLowerCase().startsWith("en") &&
                 (v.name.includes("Google UK English Female") ||
-                 v.name.includes("Google US English") ||
-                 v.name.includes("Google UK English Male"))
+                    v.name.includes("Google US English") ||
+                    v.name.includes("Google UK English Male"))
             );
 
             if (googleVoiceIdx !== -1) {
@@ -192,9 +177,9 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             const appleVoiceIdx = availableVoices.findIndex(v =>
                 v.lang.toLowerCase().startsWith("en") &&
                 (v.name.includes("Samantha") ||
-                 v.name.includes("Karen") ||
-                 v.name.includes("Daniel") ||
-                 v.name.includes("Siri"))
+                    v.name.includes("Karen") ||
+                    v.name.includes("Daniel") ||
+                    v.name.includes("Siri"))
             );
 
             if (appleVoiceIdx !== -1) {
@@ -296,106 +281,13 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
         }
     };
 
-    const speakGemini = async (cleanText, msgId) => {
-        setSpeakingMsgId(msgId);
-        setSpeechProgress(0);
-        setIsSpeaking(true);
-
-        try {
-            const apiKeyToSend = customGeminiKey.trim() || localStorage.getItem("studenthub_custom_gemini_key") || "";
-            const res = await fetch(`${BACKEND_URL}/api/tts`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: cleanText, voice: selectedGeminiVoice, apiKey: apiKeyToSend }),
-            });
-
-            if (!res.ok) {
-                speakWithWebSpeech(cleanText, msgId);
-                return;
-            }
-
-            const data = await res.json();
-            if (!data.success || !data.audio) {
-                speakWithWebSpeech(cleanText, msgId);
-                return;
-            }
-
-            const mimeType = data.mimeType || "audio/L16;rate=24000";
-            const isPcm = mimeType.toLowerCase().includes("l16") || mimeType.toLowerCase().includes("pcm");
-            const rateMatch = mimeType.match(/rate=(\d+)/i);
-            const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-
-            if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
-                audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
-            }
-            if (audioCtxRef.current.state === 'suspended') {
-                await audioCtxRef.current.resume();
-            }
-
-            let audioBuffer;
-            if (isPcm) {
-                const rawStr = atob(data.audio);
-                const byteLen = rawStr.length;
-                const byteArray = new Uint8Array(byteLen);
-                for (let i = 0; i < byteLen; i++) byteArray[i] = rawStr.charCodeAt(i);
-                const dataView = new DataView(byteArray.buffer);
-                const numSamples = Math.floor(byteLen / 2);
-                const float32 = new Float32Array(numSamples);
-                for (let i = 0; i < numSamples; i++) {
-                    float32[i] = dataView.getInt16(i * 2, true) / 32768;
-                }
-                audioBuffer = audioCtxRef.current.createBuffer(1, numSamples, sampleRate);
-                audioBuffer.getChannelData(0).set(float32);
-            } else {
-                const binStr = atob(data.audio);
-                const bytes = new Uint8Array(binStr.length);
-                for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-                audioBuffer = await audioCtxRef.current.decodeAudioData(bytes.buffer);
-            }
-
-            const source = audioCtxRef.current.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioCtxRef.current.destination);
-            audioSourcesRef.current.push(source);
-
-            const duration = audioBuffer.duration * 1000;
-            const startedAt = performance.now();
-
-            if (syncTimerRef.current) clearInterval(syncTimerRef.current);
-            syncTimerRef.current = setInterval(() => {
-                const elapsed = performance.now() - startedAt;
-                setSpeechProgress(Math.min(98, Math.round((elapsed / duration) * 100)));
-            }, 50);
-
-            source.onended = () => {
-                setSpeechProgress(100);
-                setTimeout(() => stopSpeaking(), 150);
-            };
-
-            source.start(0);
-        } catch (err) {
-            speakWithWebSpeech(cleanText, msgId);
-        }
-    };
-
     const speak = (text, msgId = null) => {
         const cleanText = cleanMarkdown(text);
         if (!cleanText) return;
         stopSpeaking();
         setSpeakingMsgId(msgId);
-
-        if (useGeminiTts) {
-            if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
-                audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-            }
-            if (audioCtxRef.current.state === 'suspended') {
-                audioCtxRef.current.resume().catch(() => {});
-            }
-            speakGemini(cleanText, msgId);
-        } else {
-            setSpeechProgress(0);
-            speakWithWebSpeech(cleanText, msgId);
-        }
+        setSpeechProgress(0);
+        speakWithWebSpeech(cleanText, msgId);
     };
 
     const findKnowledgeBaseMatch = (queryStr) => {
@@ -481,20 +373,35 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
 
             const qLower = query.toLowerCase().trim();
             const isIdentityQuery = qLower === "who are you" || qLower === "who created you" || qLower === "what is your name" || qLower === "tell me about yourself" || qLower === "who r u";
+            const isDateDayQuery = qLower.includes("what day") || qLower.includes("what date") || qLower.includes("today's date") || qLower.includes("current date") || qLower.includes("today date") || qLower.includes("what is today");
 
             const kbMatch = findKnowledgeBaseMatch(query);
 
             if (isIdentityQuery) {
                 responseText = kbMatch || "I am StudentHub's AI assistant. Created and designed by SumanOnline";
+            } else if (isDateDayQuery) {
+                const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+                const fullDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+                const timeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+                const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                const todayHoliday = holidays?.find(h => h.date === todayStr);
+
+                if (todayHoliday) {
+                    responseText = `Today is **${dayName}, ${fullDate}** (Time: ${timeStr}).\n\nPlease note that today is marked as a holiday for **${todayHoliday.occasion}**. There are no scheduled classes today.`;
+                } else {
+                    responseText = `Today is **${dayName}, ${fullDate}** (Time: ${timeStr}).`;
+                }
             } else if (kbMatch) {
                 responseText = kbMatch;
             } else if (geminiConfig.enabled) {
                 try {
+                    const currentContextStr = `[CURRENT TIME & DATE: Today is ${new Date().toLocaleDateString("en-US", { weekday: "long" })}, ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} (${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}).]`;
                     const res = await fetch(`${BACKEND_URL}/api/chat`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            message: query,
+                            message: `${currentContextStr}\n\n${query}`,
                             history: messages.map(m => ({ role: m.role, content: m.content })),
                             studentContext: {
                                 name: userData?.fullName || userData?.name,
@@ -504,7 +411,12 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                                 semester: userData?.semester,
                                 section: userData?.section,
                                 rollNo: userData?.rollNo,
-                                classes: classes || []
+                                classes: classes || [],
+                                todayDay: new Date().toLocaleDateString("en-US", { weekday: "long" }),
+                                todayDate: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+                                currentTime: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+                                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                currentDateContext: `Today is ${new Date().toLocaleDateString("en-US", { weekday: "long" })}, ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}. Current local time is ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`
                             },
                             holidays: holidays || [],
                             updates: systemUpdates || []
@@ -524,7 +436,12 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
             } else {
                 // Offline fallback logic
                 const q = query.toLowerCase();
-                if (q.includes("who created you") || q.includes("who are you") || q.includes("your origin")) {
+                if (q.includes("what day") || q.includes("what date") || q.includes("today's date") || q.includes("current date") || q.includes("today date")) {
+                    const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+                    const fullDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+                    const timeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+                    responseText = `Today is **${dayName}, ${fullDate}** (Local time: ${timeStr}).`;
+                } else if (q.includes("who created you") || q.includes("who are you") || q.includes("your origin")) {
                     responseText = "I am StudentHub's AI assistant. Created and designed by SumanOnline";
                 } else if (q.includes("class") || q.includes("schedule") || q.includes("routine")) {
                     if (classes && classes.length > 0) {
@@ -562,7 +479,7 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                             status: "pending"
                         };
                         localStorage.setItem("studenthub_admin_unanswered_queries", JSON.stringify([newUn, ...storedUn]));
-                    } catch (_) {}
+                    } catch (_) { }
 
                     try {
                         addDoc(collection(db, "ai_unanswered_queries"), {
@@ -570,8 +487,8 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                             userEmail: userData?.email || "Student",
                             timestamp: new Date(),
                             status: "pending"
-                        }).catch(() => {});
-                    } catch (_) {}
+                        }).catch(() => { });
+                    } catch (_) { }
                 }
             }
 
@@ -592,8 +509,8 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                         answer: responseText,
                         timestamp: new Date(),
                         geminiOnline: geminiConfig.enabled
-                    }).catch(() => {});
-                } catch (_) {}
+                    }).catch(() => { });
+                } catch (_) { }
             }
 
             // Speak response automatically if voice input was used, or if Gemini TTS is active
@@ -689,72 +606,33 @@ const Assistant = ({ onBack, classes = [], holidays = [], userData = null, syste
                             {/* Voice Selection Dropdown */}
                             {isSettingsOpen && (
                                 <div className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:mt-3 w-auto sm:w-72 max-h-[60vh] sm:max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <div className="px-3 py-2 mb-1 flex items-center justify-between">
+                                    <div className="px-3 py-2 mb-1 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                            {useGeminiTts ? "Gemini AI Voice" : "System Voice"}
+                                            Voice Selection
                                         </span>
-                                        <button
-                                            onClick={() => { setUseGeminiTts(v => !v); setIsSettingsOpen(false); }}
-                                            className={cn(
-                                                "text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg transition-colors",
-                                                useGeminiTts
-                                                    ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
-                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                                            )}
-                                        >
-                                            {useGeminiTts ? "Use System" : "Use Gemini AI"}
-                                        </button>
+                                        <span className="text-[9px] font-bold text-slate-400">
+                                            {voices.length} Available
+                                        </span>
                                     </div>
-                                    <div className="space-y-1">
-                                        {useGeminiTts ? (
-                                            [
-                                                { name: "Aoede", desc: "Warm Female" },
-                                                { name: "Puck", desc: "Energetic Male" },
-                                                { name: "Charon", desc: "Calm Male" },
-                                                { name: "Kore", desc: "Soft Female" },
-                                                { name: "Fenrir", desc: "Deep Male" },
-                                                { name: "Leda", desc: "Clear Female" },
-                                                { name: "Orus", desc: "Rich Male" },
-                                                { name: "Zephyr", desc: "Bright Female" },
-                                            ].map((v) => (
+                                    <div className="space-y-1 mt-1">
+                                        {voices.length > 0 ? (
+                                            voices.map((voice, index) => (
                                                 <button
-                                                    key={v.name}
-                                                    onClick={() => {
-                                                        setSelectedGeminiVoice(v.name);
-                                                        setIsSettingsOpen(false);
-                                                    }}
+                                                    key={index}
+                                                    onClick={() => { setSelectedVoiceIndex(index); setIsSettingsOpen(false); }}
                                                     className={cn(
-                                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
-                                                        selectedGeminiVoice === v.name
+                                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors text-left",
+                                                        selectedVoiceIndex === index
                                                             ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
                                                             : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                                                     )}
                                                 >
-                                                    <span>{v.name}</span>
-                                                    <span className="text-[9px] opacity-60 font-medium">{v.desc}</span>
-                                                    {selectedGeminiVoice === v.name && <Check size={14} />}
+                                                    <span className="truncate pr-2">{voice.name}</span>
+                                                    {selectedVoiceIndex === index && <Check size={14} className="shrink-0" />}
                                                 </button>
                                             ))
                                         ) : (
-                                            voices.length > 0 ? (
-                                                voices.map((voice, index) => (
-                                                    <button
-                                                        key={index}
-                                                        onClick={() => { setSelectedVoiceIndex(index); setIsSettingsOpen(false); }}
-                                                        className={cn(
-                                                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
-                                                            selectedVoiceIndex === index
-                                                                ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
-                                                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                                        )}
-                                                    >
-                                                        <span className="truncate pr-2">{voice.name}</span>
-                                                        {selectedVoiceIndex === index && <Check size={14} />}
-                                                    </button>
-                                                ))
-                                            ) : (
-                                                <div className="px-3 py-4 text-center text-xs text-slate-400">No system voices found.</div>
-                                            )
+                                            <div className="px-3 py-4 text-center text-xs text-slate-400">No system voices found.</div>
                                         )}
                                     </div>
                                 </div>

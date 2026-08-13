@@ -33,6 +33,7 @@ import {
   Sparkles,
   LayoutDashboard,
   LogOut,
+  Lock,
   Home,
   X,
   AlignLeft,
@@ -74,6 +75,7 @@ import favLogo from "../assets/fav.png";
 import { onSnapshot, orderBy } from "firebase/firestore";
 import Attendance from "./Attendance";
 import CollegeForms from "./CollegeForms";
+import StudentDashboard from "./StudentDashboard";
 import Loader from "./Loader";
 import { useAcademicConfig } from "../utils/academicConfig";
 
@@ -209,9 +211,10 @@ const CardHeader = ({ icon: Icon, iconBg, iconColor, title, subtitle, children }
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Main Component                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
-const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMobileSidebar = false, classes = [] }) => {
+const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "dashboard", showMobileSidebar = false, classes = [] }) => {
   const { config: academicConfig } = useAcademicConfig();
   const accountItems = [
+    { id: "dashboard", label: "Student Dashboard", icon: LayoutDashboard },
     { id: "profile", label: "My Profile", icon: User },
     { id: "academic", label: "Academic Info", icon: GraduationCap },
   ];
@@ -299,6 +302,12 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
   const [hasSaved, setHasSaved] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(showMobileSidebar);
   const [activeNav, setActiveNav] = useState(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveNav(initialTab);
+    }
+  }, [initialTab]);
   const [qpLinks, setQpLinks] = useState({});
   const [smLinks, setSmLinks] = useState({});
 
@@ -916,7 +925,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
             onClick={() => {
               if (hasSaved) {
                 localStorage.setItem("currentView", "dashboard");
-                window.history.replaceState(null, "", window.location.pathname);
+                window.history.replaceState(null, "", "/routine/Dashboard");
                 window.location.reload();
               } else {
                 onBack();
@@ -974,8 +983,11 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                 key={id}
                 onClick={() => {
                   if (id === "support") {
-                    onBack();
-                    setTimeout(() => window.location.hash = "support", 100);
+                    if (onNavigateView) {
+                      onNavigateView("support");
+                    } else {
+                      onBack();
+                    }
                     return;
                   }
                   setActiveNav(id);
@@ -1057,7 +1069,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
             Navigation
           </div>
           <button
-            onClick={() => { if (hasSaved) { localStorage.setItem("currentView", "dashboard"); window.history.replaceState(null, "", window.location.pathname); window.location.reload(); } else { onBack(); } }}
+            onClick={() => { if (hasSaved) { localStorage.setItem("currentView", "dashboard"); window.history.replaceState(null, "", "/routine/Dashboard"); window.location.reload(); } else { onBack(); } }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 text-[14px] w-full text-left transition-all"
           >
             <ArrowLeft size={19} className="shrink-0" />
@@ -1282,7 +1294,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                       {/* Navigation & Logout */}
                       <div className="p-2 border-t border-slate-100 dark:border-slate-700 flex flex-col gap-1">
                         <button
-                          onClick={() => { if (hasSaved) { localStorage.setItem("currentView", "dashboard"); window.history.replaceState(null, "", window.location.pathname); window.location.reload(); } else { onBack(); } }}
+                          onClick={() => { if (hasSaved) { localStorage.setItem("currentView", "dashboard"); window.history.replaceState(null, "", "/routine/Dashboard"); window.location.reload(); } else { onBack(); } }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 rounded-xl transition-colors font-semibold"
                         >
                           <Home size={15} />
@@ -1314,6 +1326,14 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
               if (activeNav === "attendance" || activeNav === "forms") return null;
 
               const headerMap = {
+                dashboard: {
+                  title: "Student",
+                  accent: "Dashboard",
+                  desc: "Overview of your academic progress, live classes, and study tools",
+                  icon: LayoutDashboard,
+                  iconBg: "bg-indigo-50 dark:bg-indigo-900/30",
+                  iconColor: "text-indigo-500"
+                },
                 profile: {
                   title: "My",
                   accent: "Profile",
@@ -1472,6 +1492,21 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
             })()}
           </div>
 
+          {activeNav === "dashboard" && (
+            <StudentDashboard
+              userProfile={formData}
+              classes={classes}
+              onNavigate={(tab) => {
+                if (tab === "routine" || tab === "home" || tab === "dashboard-home") {
+                  onBack();
+                } else {
+                  setActiveNav(tab);
+                }
+              }}
+              onOpenSettings={(tab) => setActiveNav(tab)}
+            />
+          )}
+
           <form id="settings-form" onSubmit={handleSaveProfile} className="space-y-5">
 
             {/* ── Personal Profile ── */}
@@ -1584,9 +1619,14 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                     <Field label="Full Name" icon={User}>
                       <input type="text" name="fullName" value={formData.fullName} onChange={handleFieldChange} className={inputCls()} placeholder="Enter your full name" required />
                     </Field>
+
                     <Field label="Email Address" icon={Mail}>
-                      <input type="email" name="email" value={formData.email} onChange={handleFieldChange} className={inputCls()} placeholder="name@university.edu" required />
+                      <div className="relative">
+                        <input type="email" name="email" value={formData.email} readOnly={true} className={cn(inputCls(true), "bg-slate-100/80 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed select-none pr-9")} placeholder="name@university.edu" />
+                        <Lock size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
                     </Field>
+
                     <Field label="Phone Number">
                       <div className="relative flex items-center">
                         <div className="absolute left-3.5 flex items-center gap-1.5 pointer-events-none select-none text-slate-700 dark:text-slate-200 font-semibold text-[13px]">
@@ -1605,6 +1645,13 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                           className={cn(inputCls(false), "pl-20")}
                           placeholder="98765 43210"
                         />
+                      </div>
+                    </Field>
+
+                    <Field label="Roll Number" icon={Hash}>
+                      <div className="relative">
+                        <input type="text" value={formData.rollNumber || "Not Set"} readOnly={true} className={cn(inputCls(true), "bg-slate-100/80 dark:bg-slate-800/50 text-indigo-700 dark:text-indigo-300 font-extrabold cursor-not-allowed select-none pr-9")} placeholder="e.g. 006-BCA-2023-406" />
+                        <Lock size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
                     </Field>
                   </div>
@@ -1706,28 +1753,30 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                           </Field>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <Field label="Admission Year" icon={CalendarDays}>
-                            <CustomSelect
-                              name="admissionYear"
-                              value={formData.admissionYear || new Date().getFullYear().toString()}
-                              onChange={handleFieldChange}
-                              icon={CalendarDays}
-                              openUp={true}
-                              options={Array.from({ length: 12 }, (_, i) => {
-                                const yr = (new Date().getFullYear() - i + 1).toString();
-                                return { value: yr, label: yr };
-                              })}
-                            />
-                          </Field>
+                        <div className="grid grid-cols-12 gap-2.5 sm:gap-3">
+                          <div className="col-span-5 sm:col-span-5">
+                            <Field label="Admission Year" icon={CalendarDays}>
+                              <CustomSelect
+                                name="admissionYear"
+                                value={formData.admissionYear || new Date().getFullYear().toString()}
+                                onChange={handleFieldChange}
+                                openUp={true}
+                                className="!px-3 !pr-7 !text-xs font-bold"
+                                options={Array.from({ length: 12 }, (_, i) => {
+                                  const yr = (new Date().getFullYear() - i + 1).toString();
+                                  return { value: yr, label: yr };
+                                })}
+                              />
+                            </Field>
+                          </div>
 
-                          <div className="space-y-1.5">
+                          <div className="col-span-7 sm:col-span-7 space-y-1.5">
                             <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 ml-1">Roll Number</label>
                             {ROLL_FORMAT[formData.stream] ? (
                               <div className="flex items-stretch rounded-xl border border-slate-200 dark:border-slate-700 bg-[#f5f5f9] dark:bg-slate-900 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-400 transition-all shadow-sm">
-                                <div className="w-3/4 flex items-center gap-1 px-2.5 py-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 border-r border-slate-200 dark:border-slate-700 select-none overflow-hidden">
+                                <div className="shrink-0 flex items-center gap-1 px-2 sm:px-2.5 py-2.5 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 border-r border-slate-200 dark:border-slate-700 select-none">
                                   <Hash size={11} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                                  <span className="text-sm font-black text-indigo-700 dark:text-indigo-300 tracking-wider truncate">
+                                  <span className="text-[10px] xs:text-[11px] sm:text-xs font-black text-indigo-700 dark:text-indigo-300 tracking-wider whitespace-nowrap">
                                     {ROLL_FORMAT[formData.stream].prefix}-{ROLL_FORMAT[formData.stream].code}-{formData.admissionYear || new Date().getFullYear()}-
                                   </span>
                                 </div>
@@ -1736,7 +1785,7 @@ const Settings = ({ onBack, onSync, onTabChange, initialTab = "profile", showMob
                                   name="rollNumericInput"
                                   value={rollNumericPart}
                                   onChange={handleFieldChange}
-                                  className="w-1/4 bg-transparent py-3 px-2.5 text-sm font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+                                  className="flex-1 min-w-0 bg-transparent py-2.5 px-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                                   placeholder="406"
                                   maxLength={6}
                                 />

@@ -102,12 +102,7 @@ const AdminAssistantQueries = () => {
             createdAt: new Date().toISOString()
         };
 
-        // Save to LocalStorage custom QA list
-        try {
-            const stored = localStorage.getItem("studenthub_admin_custom_qa");
-            const existing = stored ? JSON.parse(stored) : [];
-            localStorage.setItem("studenthub_admin_custom_qa", JSON.stringify([newQa, ...existing]));
-        } catch (_) {}
+
 
         // Remove from LocalStorage queries list
         try {
