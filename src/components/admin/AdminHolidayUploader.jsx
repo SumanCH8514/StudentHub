@@ -56,24 +56,35 @@ const AdminHolidayUploader = ({ onSuccess }) => {
                 const batch = writeBatch(db);
                 const holidaysRef = collection(db, "holidays");
 
-                // Wipe existing holidays first? The prompt implies "admin can upload... add it to db".
-                // Let's wipe existing to avoid duplicates if re-uploading the whole year list.
                 const existingDocs = await getDocs(holidaysRef);
                 existingDocs.forEach((d) => batch.delete(d.ref));
 
                 for (const item of holidays) {
-                    if (!item.date || !item.occasion) continue;
+                    const occasion = item.occasion || item.title || item.name || item.description || "";
+                    const date = item.date || item.startDate || "";
+                    if (!date || !occasion) continue;
+
                     const holidayDocRef = doc(holidaysRef, uuidv4());
                     batch.set(holidayDocRef, {
                         ...item,
-                        uploadedBy: auth.currentUser.uid,
+                        occasion,
+                        title: occasion,
+                        date,
+                        uploadedBy: auth.currentUser?.uid || "admin",
                         createdAt: new Date().toISOString(),
                     });
                 }
                 await batch.commit();
 
-                // Sort for display
-                const sortedHolidays = [...holidays].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const sortedHolidays = [...holidays]
+                    .map(item => ({
+                        ...item,
+                        occasion: item.occasion || item.title || item.name || item.description || "",
+                        date: item.date || item.startDate || ""
+                    }))
+                    .filter(item => item.date && item.occasion)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
                 setParsedHolidays(sortedHolidays);
                 setSuccess(true);
                 if (onSuccess) onSuccess();

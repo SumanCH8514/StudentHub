@@ -22,7 +22,11 @@ import {
   Trash2,
   FileQuestion,
   BookMarked,
-  Camera
+  Camera,
+  Building2,
+  GraduationCap,
+  Hash,
+  Users
 } from "lucide-react";
 import { db, auth } from "../firebaseConfig";
 import { collection, query, where, onSnapshot, doc, setDoc } from "firebase/firestore";
@@ -147,7 +151,7 @@ const StudentDashboard = ({ userProfile, classes = [], onNavigate, onOpenSetting
               </button>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   {name}
@@ -157,37 +161,55 @@ const StudentDashboard = ({ userProfile, classes = [], onNavigate, onOpenSetting
                 </span>
               </div>
 
-              <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
-                {university} • {stream}
-              </p>
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                  <Building2 size={13} className="shrink-0" />
+                  <span>{university}</span>
+                </div>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                  <GraduationCap size={13} className="shrink-0 text-slate-400 dark:text-slate-500" />
+                  <span>{stream}</span>
+                </div>
+              </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-2.5 py-0.5 rounded-md">
-                  Semester {semester}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                  <Layers size={11} className="text-indigo-500 shrink-0" />
+                  <span>Semester {semester}</span>
                 </span>
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-2.5 py-0.5 rounded-md">
-                  Section {section}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                  <Users size={11} className="text-cyan-500 shrink-0" />
+                  <span>Section {section}</span>
                 </span>
-                <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-900/60">
-                  Roll: {rollNumber}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/50">
+                  <Hash size={11} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Roll: {rollNumber}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700/60">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700/60 w-full sm:w-auto">
             <button
-              onClick={() => onNavigate("assistant")}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate("assistant");
+                } else {
+                  window.history.pushState(null, "", "/routine/Assistant");
+                  window.dispatchEvent(new PopStateEvent("popstate"));
+                }
+              }}
+              className="h-11 sm:h-10 inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm active:scale-95"
             >
-              <Sparkles size={15} />
-              <span>AI Study Assistant</span>
+              <Sparkles size={15} className="shrink-0" />
+              <span>AI <span className="hidden xs:inline">Study </span>Assistant</span>
             </button>
             <button
               onClick={() => onOpenSettings("attendance")}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold text-xs sm:text-sm transition-all active:scale-95"
+              className="h-11 sm:h-10 inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all active:scale-95"
             >
-              <ClipboardCheck size={15} />
+              <ClipboardCheck size={15} className="shrink-0" />
               <span>Attendance</span>
             </button>
           </div>

@@ -6,6 +6,7 @@ import { db } from "./firebaseConfig";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import Loader from "./components/Loader";
 import favLogo from "./assets/fav.png";
+import { applyTheme, getInitialTheme } from "./utils/theme";
 
 // Lazy-load heavy route components
 const Dashboard = React.lazy(() => import("./components/Dashboard"));
@@ -37,13 +38,7 @@ function App() {
       window.location.replace(path + "/" + window.location.search + window.location.hash);
     }
 
-    // Immediate Theme Initialization
-    const savedTheme = localStorage.getItem("studentHub_theme");
-    if (savedTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    applyTheme(getInitialTheme());
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -59,12 +54,7 @@ function App() {
             const pref = data.themePreference;
             if (pref) {
               const isDark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-              if (isDark) {
-                document.documentElement.classList.add("dark");
-              } else {
-                document.documentElement.classList.remove("dark");
-              }
-              localStorage.setItem("studentHub_theme", pref === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : pref);
+              applyTheme(isDark ? "dark" : "light");
             }
           }
         } catch (err) {

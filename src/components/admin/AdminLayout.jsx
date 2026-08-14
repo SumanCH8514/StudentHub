@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTheme } from "../../utils/theme";
 import {
     Search,
     Menu,
@@ -23,29 +24,34 @@ import {
     MessageCircleQuestion,
     History,
     Settings as Settings2,
+    Sparkles,
+    Shield,
+    FileText,
+    HelpCircle,
+    ChevronDown,
+    Sliders,
+    BookOpen,
     CheckCircle2,
     Files,
     CalendarRange,
-    FileText,
-    BookOpen,
     Layers
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import defaultProfileImg from "../../assets/gojo-prof.jpg";
-
-import studentHubLogo from "../../assets/StudentHub-logo1.png";
 
 function cn(...inputs) {
     return twMerge(clsx(inputs));
 }
+import defaultProfileImg from "../../assets/gojo-prof.jpg";
+
+import studentHubLogo from "../../assets/StudentHub-logo1.png";
 
 const AdminLayout = ({
     children,
     activeTab,
     setActiveTab,
-    userName,
-    userEmail,
+    adminName = "Administrator",
+    adminRole = "System Admin",
     userPhoto,
     onLogout,
     onBack,
@@ -53,6 +59,7 @@ const AdminLayout = ({
     onMarkNotificationRead,
     currentUserId
 }) => {
+    const { isDarkMode, toggleTheme: handleDarkMode } = useTheme();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsMenuOpen, setIsNotificationsMenuOpen] = useState(false);
@@ -60,10 +67,6 @@ const AdminLayout = ({
 
     // Calculate unread
     const unreadCount = notifications.filter(n => !n.readBy?.includes(currentUserId)).length;
-
-    const handleDarkMode = () => {
-        document.documentElement.classList.toggle('dark');
-    };
 
     const handleTranslate = () => {
         setShowTranslate(!showTranslate);
@@ -363,10 +366,10 @@ const AdminLayout = ({
                                 </button>
                                 <button
                                     onClick={handleDarkMode}
-                                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 active:scale-95 rounded-full transition-all"
-                                    title="Toggle Theme"
+                                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 rounded-full transition-all"
+                                    title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                                 >
-                                    <Moon size={22} />
+                                    {isDarkMode ? <Sun size={22} className="text-amber-400" /> : <Moon size={22} />}
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('dashboard')}

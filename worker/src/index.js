@@ -436,6 +436,7 @@ Only output valid raw JSON array without markdown formatting codeblocks.`;
 Extract holiday events into a clean JSON array of objects:
 [
   {
+    "occasion": "Independence Day",
     "title": "Independence Day",
     "date": "YYYY-MM-DD",
     "endDate": "YYYY-MM-DD",
@@ -465,7 +466,7 @@ Only output valid raw JSON array without markdown formatting codeblocks.`;
           });
 
           geminiParts.push({
-            text: "Extract all holiday entries from this image and return a raw JSON array matching schema: [{ title, date, endDate, description }]."
+            text: "Extract all holiday entries from this image and return a raw JSON array matching schema: [{ occasion, title, date, endDate, description }]."
           });
 
           geminiParts.push({
@@ -490,11 +491,19 @@ Only output valid raw JSON array without markdown formatting codeblocks.`;
             const possibleArray = parsed.holidays || parsed.data || Object.values(parsed).find(v => Array.isArray(v));
             if (Array.isArray(possibleArray)) {
               parsedData = possibleArray;
-            } else if (parsed.title || parsed.date) {
+            } else if (parsed.title || parsed.occasion || parsed.date) {
               parsedData = [parsed];
             } else {
               parsedData = parsed;
             }
+          }
+          if (Array.isArray(parsedData)) {
+            parsedData = parsedData.map(item => ({
+              ...item,
+              occasion: item.occasion || item.title || item.name || item.description || "Holiday",
+              title: item.title || item.occasion || item.name || "Holiday",
+              date: item.date || item.startDate || ""
+            })).filter(h => h.date && h.occasion);
           }
         } catch {
           parsedData = { rawResponse: resultText };

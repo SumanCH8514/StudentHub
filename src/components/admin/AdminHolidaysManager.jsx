@@ -165,7 +165,7 @@ const AdminHolidaysManager = () => {
                                                 <h4 className={cn(
                                                     "font-bold text-sm line-clamp-2 break-words",
                                                     isPast ? "text-slate-600 dark:text-slate-400" : "text-slate-800 dark:text-slate-200"
-                                                )} title={h.occasion}>{h.occasion}</h4>
+                                                )} title={h.occasion || h.title || h.name}>{h.occasion || h.title || h.name}</h4>
                                                 <p className="text-slate-500 text-xs font-medium mt-0.5">{dayName}, {dateObj.getFullYear()}</p>
                                             </div>
                                         </div>

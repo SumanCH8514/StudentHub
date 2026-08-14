@@ -1,23 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { Shield, ArrowLeft } from "lucide-react";
 import StudentHubLogo from "../assets/StudentHub-logo1.png";
+import { useTheme } from "../utils/theme";
 
 const PrivacyPolicy = () => {
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        return document.documentElement.classList.contains("dark");
-    });
-
-    useEffect(() => {
-        const handleThemeChange = () => {
-            setIsDarkMode(document.documentElement.classList.contains("dark"));
-        };
-
-        const observer = new MutationObserver(handleThemeChange);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-
-        return () => observer.disconnect();
-    }, []);
+    const { isDarkMode } = useTheme();
 
     return (
         <div className="min-h-screen w-full flex bg-slate-50 dark:bg-[#0F172A] font-sans text-slate-800 dark:text-slate-200 py-12 px-6 sm:px-10 lg:px-20 relative overflow-hidden transition-colors duration-300">

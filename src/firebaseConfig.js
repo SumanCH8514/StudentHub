@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import { getMessaging, isSupported } from "firebase/messaging";
@@ -15,15 +15,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 export const auth = getAuth(app);
 export const analytics = getAnalytics(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Safe Messaging Initialization
+
 export let messaging = null;
 
-// Initialize messaging only if supported in this environment
 isSupported().then((supported) => {
   if (supported) {
     messaging = getMessaging(app);

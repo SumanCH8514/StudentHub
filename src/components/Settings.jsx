@@ -28,6 +28,7 @@ import {
   Search,
   Bell,
   Moon,
+  Sun,
   Globe,
   Info,
   Sparkles,
@@ -76,8 +77,10 @@ import { onSnapshot, orderBy } from "firebase/firestore";
 import Attendance from "./Attendance";
 import CollegeForms from "./CollegeForms";
 import StudentDashboard from "./StudentDashboard";
+import Uploader from "./Uploader";
 import Loader from "./Loader";
 import { useAcademicConfig } from "../utils/academicConfig";
+import { useTheme, toggleGlobalTheme, applyTheme } from "../utils/theme";
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -294,6 +297,7 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
     },
   ];
 
+  const { isDarkMode, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [message, setMessage] = useState("");
@@ -435,7 +439,7 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
   }, [initialTab, showMobileSidebar]);
 
   const ROLL_FORMAT = {
-    "BCA":  { prefix: "006", code: "BCA" },
+    "BCA": { prefix: "006", code: "BCA" },
     "ANCS": { prefix: "001", code: "BANC" },
   };
 
@@ -484,6 +488,52 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
 
   const [examRoutines, setExamRoutines] = useState([]);
   const [loadingExams, setLoadingExams] = useState(false);
+
+  // Check Results State
+  const [resultSearchRoll, setResultSearchRoll] = useState("");
+  const [resultSearchSem, setResultSearchSem] = useState("");
+  const [resultSearchYear, setResultSearchYear] = useState("");
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+
+  useEffect(() => {
+    if (formData.rollNumber && !resultSearchRoll) {
+      setResultSearchRoll(formData.rollNumber);
+    }
+    if (formData.semester && !resultSearchSem) {
+      setResultSearchSem(String(formData.semester));
+    }
+  }, [formData.rollNumber, formData.semester]);
+
+  useEffect(() => {
+    const roll = resultSearchRoll || formData.rollNumber || "";
+    const sem = parseInt(resultSearchSem || formData.semester || "1", 10);
+    const match = String(roll).match(/\b(20\d{2})\b/);
+    const admissionYear = match ? parseInt(match[1], 10) : (new Date().getFullYear() - 2);
+    const additionalYears = Math.floor(Math.max(0, sem - 1) / 2);
+    setResultSearchYear(String(admissionYear + additionalYears));
+  }, [resultSearchRoll, resultSearchSem, formData.rollNumber, formData.semester]);
+
+  const availableResultSemesters = useMemo(() => {
+    const streamList = academicConfig?.streams || [];
+    const currentStreamObj = streamList.find(s => s.name === formData.stream);
+    const maxSem = currentStreamObj ? (currentStreamObj.semestersCount || 8) : 8;
+    return Array.from({ length: maxSem }, (_, i) => String(i + 1));
+  }, [academicConfig?.streams, formData.stream]);
+
+  const availableExamYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = new Set([
+      resultSearchYear,
+      String(currentYear),
+      String(currentYear - 1),
+      String(currentYear - 2),
+      String(currentYear - 3),
+      String(currentYear - 4),
+      String(currentYear - 5),
+    ].filter(Boolean));
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [resultSearchYear]);
 
   const parseExamTime = (timeStr) => {
     if (!timeStr) return 0;
@@ -1161,11 +1211,11 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
             {/* Right: icons + profile */}
             <div className="flex items-center gap-2 shrink-0">
               <button
-                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-all"
-                title="Toggle theme"
-                onClick={() => document.documentElement.classList.toggle("dark")}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                onClick={toggleTheme}
               >
-                <Moon size={20} />
+                {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
               </button>
               <div className="relative">
                 <button
@@ -1499,6 +1549,12 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
               onNavigate={(tab) => {
                 if (tab === "routine" || tab === "home" || tab === "dashboard-home") {
                   onBack();
+                } else if (tab === "assistant") {
+                  if (onNavigateView) {
+                    onNavigateView("assistant");
+                  }
+                  window.history.pushState(null, "", "/routine/Assistant");
+                  window.dispatchEvent(new PopStateEvent("popstate"));
                 } else {
                   setActiveNav(tab);
                 }
@@ -1826,126 +1882,105 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
                   <CardHeader
                     icon={MessagesSquare}
                     iconBg="bg-blue-50 dark:bg-blue-900/30"
-                    iconColor="text-blue-500"
-                    title="Communication Hub"
-                    subtitle="Connect with your peers and the StudentHub team"
+                    iconColor="text-blue-600 dark:text-blue-400"
+                    title="Student Community & Channels"
+                    subtitle="Official batch groups, announcements, and peer support"
                   />
-                  <div className="p-6">
+                  <div className="p-5 sm:p-7 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* WhatsApp Group */}
-                      <div className="bg-[#25D366]/5 dark:bg-[#25D366]/10 border border-[#25D366]/20 rounded-2xl p-5 group hover:shadow-lg transition-all">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-[#25D366] text-white rounded-xl flex items-center justify-center shadow-lg shadow-[#25D366]/20">
-                              <Smartphone size={24} />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-slate-800 dark:text-white">Official WhatsApp</h4>
-                              <p className="text-[11px] text-[#25D366] font-black uppercase tracking-widest mt-0.5">Community Group</p>
+                      {/* WhatsApp Batch Group */}
+                      <div className="bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center shadow-md shadow-[#25D366]/20 shrink-0">
+                                <Smartphone size={22} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Official WhatsApp Group</h4>
+                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Stream &amp; Section Group</p>
+                              </div>
                             </div>
                           </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Join your class WhatsApp group for real-time timetable updates, class cancellations, and collaborative study notes.
+                          </p>
+                        </div>
+                        <div className="pt-4 mt-2 border-t border-emerald-100/80 dark:border-emerald-900/30 flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Class Representatives Active</span>
                           <button
+                            type="button"
                             onClick={() => window.open("https://whatsapp.com/channel/0029VbAQjkP9WtC2Fa6Ggg2H", "_blank")}
-                            className="p-2 bg-white dark:bg-slate-800 text-slate-400 hover:text-[#25D366] rounded-xl border border-slate-100 dark:border-slate-700 transition-all active:scale-90"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-xs"
                           >
-                            <ExternalLink size={18} />
+                            <span>Join Group</span>
+                            <ExternalLink size={13} />
                           </button>
                         </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-4 leading-relaxed">
-                          Join the official StudentHub community for instant updates and peer discussions.
-                        </p>
                       </div>
 
-                      {/* Telegram Channel */}
-                      <div className="bg-[#0088cc]/5 dark:bg-[#0088cc]/10 border border-[#0088cc]/20 rounded-2xl p-5 group hover:shadow-lg transition-all">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-[#0088cc] text-white rounded-xl flex items-center justify-center shadow-lg shadow-[#0088cc]/20">
-                              <Send size={24} />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-slate-800 dark:text-white">Telegram Channel</h4>
-                              <p className="text-[11px] text-[#0088cc] font-black uppercase tracking-widest mt-0.5">Global Updates</p>
+                      {/* Telegram Broadcast Channel */}
+                      <div className="bg-sky-50/40 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 rounded-2xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 bg-[#0088cc] text-white rounded-xl flex items-center justify-center shadow-md shadow-[#0088cc]/20 shrink-0">
+                                <Send size={22} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Telegram Alerts Channel</h4>
+                                <p className="text-[11px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">University Broadcasts</p>
+                              </div>
                             </div>
                           </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Official broadcast channel for exam date sheets, college holiday circulars, and university result release alerts.
+                          </p>
+                        </div>
+                        <div className="pt-4 mt-2 border-t border-sky-100/80 dark:border-sky-900/30 flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Instant Push Notifications</span>
                           <button
+                            type="button"
                             onClick={() => window.open("https://t.me/SumanOnline_Com", "_blank")}
-                            className="p-2 bg-white dark:bg-slate-800 text-slate-400 hover:text-[#0088cc] rounded-xl border border-slate-100 dark:border-slate-700 transition-all active:scale-90"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-xs"
                           >
-                            <ExternalLink size={18} />
+                            <span>Subscribe</span>
+                            <ExternalLink size={13} />
                           </button>
                         </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-4 leading-relaxed">
-                          The most secure way to stay informed about university routines and semester results.
-                        </p>
                       </div>
                     </div>
 
-                    {/* Support Feature */}
-                    <div className="mt-6 p-6 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-700 text-center relative overflow-hidden group">
-                      <div className="relative z-10">
-                        <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-500/5 border border-slate-100 dark:border-slate-700">
-                          <MessageCircle size={32} className="text-blue-500" />
+                    {/* Support & Assistance Card */}
+                    <div className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
+                          <MessageCircle size={22} />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Need Direct Assistance?</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mx-auto mb-6"> Our support team is available mon-fri (10 AM - 6 PM) to resolve your technical issues.</p>
-                        <button
-                          onClick={() => setActiveNav("support")}
-                          className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[12px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-                        >
-                          Open Support Portal
-                        </button>
+                        <div>
+                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">Need Help with Schedules or Profile?</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Submit a query or contact administrative technical support.
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onNavigateView) {
+                            onNavigateView("support");
+                          } else if (onBack) {
+                            window.history.pushState(null, "", "/routine/support");
+                            onBack();
+                          }
+                        }}
+                        className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95 shrink-0 cursor-pointer"
+                      >
+                        Help &amp; Support
+                      </button>
                     </div>
                   </div>
                 </Card>
-
-                {/* Upcoming Preview / Alpha */}
-                <div className="relative group rounded-3xl overflow-hidden mt-8 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 group-hover:h-2 transition-all duration-300" />
-
-                  {/* Background pattern */}
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] dark:opacity-[0.05] pointer-events-none" />
-
-                  <div className="relative p-6 sm:p-8 flex flex-col items-center md:items-start md:flex-row gap-6 sm:gap-8 z-10">
-                    {/* Icon Container */}
-                    <div className="relative shrink-0">
-                      <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
-                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/40 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-center border-4 border-white dark:border-slate-700 shadow-xl group-hover:scale-105 transition-transform duration-500">
-                        <Users size={40} className="text-indigo-600 dark:text-indigo-400 sm:w-12 sm:h-12" />
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 text-center md:text-left flex flex-col justify-center">
-                      <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-2.5 mb-3">
-                        <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight break-words">
-                          Native Messaging <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">(Alpha)</span>
-                        </h3>
-                        <span className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm whitespace-nowrap">
-                          Coming Soon
-                        </span>
-                      </div>
-
-                      <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[15px] leading-relaxed max-w-xl mx-auto md:mx-0 mb-6 font-medium">
-                        We are building a private, secure real-time chat architecture integrated directly into StudentHub. Soon you'll be able to message batch-mates without ever sharing your phone number.
-                      </p>
-
-                      {/* Feature Tags */}
-                      <div className="flex flex-wrap justify-center md:justify-start gap-3 sm:gap-4">
-                        <div className="flex items-center gap-2 text-xs sm:text-[12px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <CheckCircle2 size={16} className="text-emerald-500" /> Privacy First
-                        </div>
-                        <div className="flex items-center gap-2 text-xs sm:text-[12px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <CheckCircle2 size={16} className="text-emerald-500" /> Real-time Sync
-                        </div>
-                        <div className="flex items-center gap-2 text-xs sm:text-[12px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <CheckCircle2 size={16} className="text-emerald-500" /> E2E Encryption
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1994,8 +2029,7 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
                         handleFieldChange(e);
                         const val = e.target.value;
                         const isDark = val === "dark" || (val === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-                        if (isDark) document.documentElement.classList.add("dark");
-                        else document.documentElement.classList.remove("dark");
+                        applyTheme(isDark ? "dark" : "light");
                       }}
                       className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium py-1.5 px-3 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer min-w-[100px] text-center"
                     >
@@ -2016,18 +2050,102 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
                   iconBg="bg-emerald-50 dark:bg-emerald-900/30"
                   iconColor="text-emerald-500"
                   title="Check Results"
-                  subtitle="View and download your semester results"
+                  subtitle="Search and view semester gradebook & official marksheets"
                 />
-                <div className="w-full relative min-h-[75vh] md:min-h-[85vh] rounded-b-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50">
-                  <iframe
-                    src={formData.rollNumber
-                      ? `https://sumanonline.com/studentHub/result/index.php?roll=${encodeURIComponent(formData.rollNumber)}`
-                      : "https://sumanonline.com/studentHub/result/"
-                    }
-                    title="StudentHub Results Portal"
-                    className="absolute top-0 left-0 w-full h-full border-0"
-                    allowFullScreen
-                  />
+
+                <div className="p-5 sm:p-7 space-y-6">
+                  {/* Results Search Form Card */}
+                  <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          Result Search Criteria
+                        </h4>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const resultSemOpts = availableResultSemesters.map((sem) => ({
+                        value: sem,
+                        label: `Semester ${sem}`,
+                      }));
+                      const resultYearOpts = availableExamYears.map((yr) => ({
+                        value: yr,
+                        label: yr === resultSearchYear ? `${yr} (Auto Calc)` : `Year ${yr}`,
+                      }));
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {/* Roll Number Input */}
+                          <Field label="Roll Number" icon={Hash}>
+                            <input
+                              type="text"
+                              value={resultSearchRoll}
+                              onChange={(e) => setResultSearchRoll(e.target.value)}
+                              placeholder="e.g. 006-BCA-2023-406"
+                              className={inputCls(true)}
+                            />
+                          </Field>
+
+                          {/* Semester CustomSelect */}
+                          <Field label="Semester" icon={Layers}>
+                            <CustomSelect
+                              name="resultSemester"
+                              value={resultSearchSem}
+                              onChange={(e) => setResultSearchSem(e.target.value)}
+                              icon={Layers}
+                              options={resultSemOpts}
+                            />
+                          </Field>
+
+                          {/* Examination Year CustomSelect */}
+                          <Field label="Examination Year" icon={CalendarDays}>
+                            <CustomSelect
+                              name="resultExamYear"
+                              value={resultSearchYear}
+                              onChange={(e) => setResultSearchYear(e.target.value)}
+                              icon={CalendarDays}
+                              options={resultYearOpts}
+                            />
+                          </Field>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="text-[12px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                        <span>Ready to query official grade records for {formData.stream || "course"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsIframeLoading(true);
+                          setIsResultModalOpen(true);
+                        }}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Search size={16} className="shrink-0" />
+                        <span>Show Result</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Official Verification Notice */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-900/40">
+                      <GraduationCap size={18} />
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-slate-800 dark:text-slate-200">
+                        Official University Transcript Portal
+                      </p>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                        Transcripts and grade sheets are fetched directly from the university examination database. Results include subject-wise credit scores, SGPA / CGPA rankings, and printable marksheet copies.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </Card>
             )}
@@ -2044,18 +2162,57 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
               <Card>
                 <CardHeader
                   icon={Upload}
-                  iconBg="bg-blue-50 dark:bg-blue-900/30"
-                  iconColor="text-blue-500"
+                  iconBg="bg-indigo-50 dark:bg-indigo-900/30"
+                  iconColor="text-indigo-600 dark:text-indigo-400"
                   title="Upload Routine"
-                  subtitle="Contribute to the StudentHub community"
+                  subtitle="AI-powered class timetable scanner & community sync"
                 />
-                <div className="p-8 text-center">
-                  <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Upload size={32} className="text-blue-500" />
+
+                <div className="p-5 sm:p-7 space-y-6">
+                  {/* Current Target Academic Badge */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 dark:bg-slate-800/60 border border-indigo-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                          Target Academic Schedule
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/60 shadow-xs">
+                          {formData.university || "University"}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          {formData.stream || "Course"}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          Semester {formData.semester || "1"}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          Section {formData.section || "1"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveNav("academic")}
+                      className="self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-600 text-indigo-600 dark:text-indigo-300 text-xs font-bold border border-slate-200 dark:border-slate-600 transition-colors shrink-0"
+                    >
+                      Change Details
+                    </button>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Routine Sync Terminal</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mx-auto mb-6">You can upload your class routine directly from the Dashboard using the "Sync" button in the top bar.</p>
-                  <button type="button" onClick={onSync} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-all">Start Routine Sync</button>
+
+                  {/* Interactive Embedded Uploader Component */}
+                  <div>
+                    <Uploader
+                      hideHeader={true}
+                      onUploadSuccess={() => {
+                        setSaveStatus("success");
+                        setMessage("Routine scanned and synced successfully!");
+                        setTimeout(() => setSaveStatus(null), 4000);
+                      }}
+                    />
+                  </div>
                 </div>
               </Card>
             )}
@@ -2066,137 +2223,152 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
                 <CardHeader
                   icon={CalendarDays}
                   iconBg="bg-amber-50 dark:bg-amber-900/30"
-                  iconColor="text-amber-500"
-                  title="Exam Time Routine"
-                  subtitle="Upcoming examination schedule"
+                  iconColor="text-amber-600 dark:text-amber-400"
+                  title="Examination Schedule"
+                  subtitle="Official semester theory & practical examination dates"
                 >
                   <button
                     type="button"
                     onClick={() => { setFetching(true); setTimeout(() => setFetching(false), 100); }}
-                    className="p-2 text-slate-400 hover:text-amber-500 transition-colors"
-                    title="Refresh Schedule"
+                    className="p-2 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors rounded-lg"
+                    title="Refresh Timetable"
                   >
                     <RefreshCw size={16} className={cn(loadingExams && "animate-spin")} />
                   </button>
                 </CardHeader>
-                <div className="p-5 sm:p-7 space-y-4">
+                <div className="p-5 sm:p-7 space-y-5">
+                  {/* Academic Context Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>{formData.university || "University"} • {formData.stream || "Course"}</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold">
+                      Semester {formData.semester || "1"}
+                    </span>
+                  </div>
+
                   {loadingExams ? (
                     <div className="flex flex-col items-center justify-center py-12">
-                      <Loader inline size="md" message="Securing your schedule..." />
+                      <Loader inline size="md" message="Loading examination schedule..." />
                     </div>
                   ) : processedExams.length > 0 ? (
-                    <div className="grid gap-4">
-                      {processedExams.map((exam, idx) => (
-                        <div
-                          key={exam.id}
-                          className={cn(
-                            "group relative bg-white dark:bg-slate-900/40 border rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-[#404af9]/5 hover:-translate-y-0.5 overflow-hidden flex flex-col sm:flex-row",
-                            exam.status === 'today'
-                              ? "border-l-4 border-l-[#404af9] border-blue-100 dark:border-blue-900/30 ring-1 ring-[#404af9]/10"
-                              : exam.status === 'passed'
-                                ? "border-l-4 border-l-slate-300 dark:border-l-slate-700 border-slate-100 dark:border-slate-800 opacity-60 grayscale-[0.4]"
-                                : "border-l-4 border-l-indigo-400 dark:border-l-indigo-600 border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-900/50"
-                          )}
-                        >
-                          {/* Accent Background for Today */}
-                          {exam.status === 'today' && (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#404af9]/5 to-transparent pointer-events-none" />
-                          )}
+                    <div className="grid gap-3.5">
+                      {processedExams.map((exam) => {
+                        const isToday = exam.status === 'today';
+                        const isPassed = exam.status === 'passed';
 
-                          {/* Status Badge - Floating */}
-                          {exam.status === 'today' && (
-                            <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#404af9] text-white text-[9px] sm:text-[10px] font-black tracking-widest uppercase rounded-full shadow-lg shadow-[#404af9]/30 animate-pulse">
-                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                                Today
-                              </span>
-                            </div>
-                          )}
+                        let parsedDate = null;
+                        try {
+                          if (exam.date) parsedDate = new Date(exam.date);
+                        } catch (e) {}
 
-                          {/* Left Side: Day Indicator */}
-                          <div className={cn(
-                            "flex items-center justify-start sm:justify-center sm:flex-col gap-3 p-4 sm:w-20 shrink-0 border-b sm:border-b-0 sm:border-r transition-all",
-                            exam.status === 'today'
-                              ? "bg-[#404af9]/5 border-blue-100 dark:border-blue-900/20"
-                              : "bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-slate-800/50"
-                          )}>
-                            <span className={cn(
-                              "text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em]",
-                              exam.status === 'today' ? "text-[#404af9]" : "text-slate-400"
-                            )}>Day</span>
-                            <span className={cn(
-                              "text-2xl sm:text-3xl font-black leading-none",
-                              exam.status === 'today' ? "text-[#404af9]" : "text-slate-700 dark:text-slate-300"
-                            )}>{exam.dayNumber}</span>
-                          </div>
+                        const monthStr = parsedDate && !isNaN(parsedDate) ? parsedDate.toLocaleDateString('en-US', { month: 'short' }) : 'EXAM';
+                        const dayNum = parsedDate && !isNaN(parsedDate) ? parsedDate.getDate() : (exam.dayNumber || '•');
+                        const weekdayStr = parsedDate && !isNaN(parsedDate) ? parsedDate.toLocaleDateString('en-US', { weekday: 'short' }) : (exam.day || 'Day');
 
-                          {/* Content Section */}
-                          <div className="flex-1 p-5 sm:p-6 flex flex-col justify-center gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={cn(
-                                  "px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border",
-                                  exam.status === 'today'
-                                    ? "bg-blue-50 dark:bg-blue-900/20 text-[#404af9] border-[#404af9]/20"
-                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
-                                )}>
-                                  {exam.examType || 'EXAM'}
-                                </span>
-                                {exam.status === 'passed' && (
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                    <CheckCircle2 size={10} /> Completed
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className={cn(
-                                "text-lg sm:text-xl font-black tracking-tight leading-tight",
-                                exam.status === 'today' ? "text-slate-900 dark:text-white" : "text-slate-800 dark:text-slate-200"
+                        return (
+                          <div
+                            key={exam.id}
+                            className={cn(
+                              "relative bg-white dark:bg-slate-800/80 border rounded-2xl p-4 sm:p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                              isToday
+                                ? "border-amber-400/80 dark:border-amber-500/60 ring-2 ring-amber-400/20 bg-amber-50/20 dark:bg-amber-950/10 shadow-sm"
+                                : isPassed
+                                  ? "border-slate-200/70 dark:border-slate-800 opacity-60"
+                                  : "border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-xs"
+                            )}
+                          >
+                            <div className="flex items-center gap-4 min-w-0">
+                              {/* Date Calendar Box */}
+                              <div className={cn(
+                                "w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border text-center select-none",
+                                isToday
+                                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                                  : isPassed
+                                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500"
+                                    : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
                               )}>
-                                {exam.subject}
-                              </h4>
+                                <span className="text-[10px] font-bold uppercase tracking-wider leading-none">
+                                  {monthStr}
+                                </span>
+                                <span className="text-lg font-black leading-tight mt-0.5">
+                                  {dayNum}
+                                </span>
+                                <span className="text-[9px] font-semibold uppercase opacity-80 leading-none">
+                                  {weekdayStr}
+                                </span>
+                              </div>
+
+                              {/* Exam Details */}
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                                    isToday
+                                      ? "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
+                                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700"
+                                  )}>
+                                    {exam.examType || 'Theory'}
+                                  </span>
+                                  {isToday && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white uppercase tracking-wider animate-pulse">
+                                      Today's Exam
+                                    </span>
+                                  )}
+                                  {isPassed && (
+                                    <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+                                      <CheckCircle2 size={12} /> Completed
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                                  {exam.subject}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                  <span className="flex items-center gap-1.5">
+                                    <CalendarDays size={13} className="text-slate-400" />
+                                    {exam.date}
+                                  </span>
+                                  {exam.time && (
+                                    <span className="flex items-center gap-1.5">
+                                      <Activity size={13} className="text-slate-400" />
+                                      {exam.time}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-y-2 gap-x-5">
-                              <div className="flex items-center gap-2 text-[11px] sm:text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                                <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                  <CalendarDays size={14} />
-                                </div>
-                                <span className="hidden sm:inline">{exam.date}</span>
-                                <span className="sm:hidden">{exam.date}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-[11px] sm:text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                                <div className={cn(
-                                  "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
-                                  exam.status === 'today' ? "bg-blue-100 dark:bg-[#404af9]/20 text-[#404af9]" : "bg-slate-100 dark:bg-slate-800"
-                                )}>
-                                  <Activity size={14} />
-                                </div>
-                                {exam.time}
-                              </div>
+                            {/* Status Chip */}
+                            <div className="flex items-center self-end sm:self-center shrink-0">
+                              {isToday ? (
+                                <span className="px-3 py-1 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 text-xs font-bold">
+                                  Exam In Progress
+                                </span>
+                              ) : isPassed ? (
+                                <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-medium">
+                                  Concluded
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                                  Scheduled
+                                </span>
+                              )}
                             </div>
                           </div>
-
-                          {/* Right Action/Indicator (Desktop only) */}
-                          <div className="hidden sm:flex items-center px-6">
-                            <div className={cn(
-                              "w-10 h-10 rounded-full flex items-center justify-center border transition-all",
-                              exam.status === 'today'
-                                ? "bg-[#404af9] text-white border-[#404af9] shadow-lg shadow-[#404af9]/20"
-                                : "bg-white dark:bg-slate-800 text-slate-300 border-slate-100 dark:border-slate-700 group-hover:border-indigo-200 group-hover:text-indigo-400"
-                            )}>
-                              <ChevronRight size={20} />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="p-12 text-center bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-                      <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CalendarDays size={40} className="text-indigo-500" />
+                    <div className="p-8 sm:p-10 text-center bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <CalendarDays size={24} />
                       </div>
-                      <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Schedule Awaiting Release</h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm max-w-xs mx-auto">No examination dates have been logged for this semester yet.</p>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">No Examination Schedule Published</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                        The examination authority has not published the timetable for Semester {formData.semester || "1"} yet.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2738,6 +2910,70 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
 
         </div>
       </main >
+
+      {/* ── Results Popup Modal ── */}
+      {isResultModalOpen && (
+        <div className="fixed inset-0 z-[100] w-screen h-screen h-[100dvh] bg-white dark:bg-slate-900 flex flex-col overflow-hidden animate-in fade-in duration-200">
+          {/* Modal Header */}
+          <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/40">
+                <ClipboardList size={20} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                  Semester Result Transcripts
+                </h3>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Roll: {resultSearchRoll || "N/A"}</span>
+                  <span>•</span>
+                  <span>Sem {resultSearchSem}</span>
+                  <span>•</span>
+                  <span>Exam Year {resultSearchYear}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`https://sumanonline.com/studentHub/result/index.php?roll=${encodeURIComponent(resultSearchRoll || "")}&sem=${encodeURIComponent(resultSearchSem || "")}&year=${encodeURIComponent(resultSearchYear || "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 sm:px-3 sm:py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                title="Open Portal in New Tab"
+              >
+                <ExternalLink size={15} />
+                <span className="hidden sm:inline">New Tab</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setIsResultModalOpen(false)}
+                className="p-2 sm:px-3 sm:py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/50 dark:hover:text-rose-400 text-slate-600 dark:text-slate-300 rounded-xl transition-all active:scale-95 flex items-center gap-1 text-xs font-bold"
+                title="Close Modal"
+              >
+                <X size={18} />
+                <span className="hidden xs:inline">Close</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body - 100% Full Viewport */}
+          <div className="flex-1 relative w-full h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
+            {isIframeLoading && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs">
+                <Loader inline size="md" message="Fetching Semester Result..." />
+              </div>
+            )}
+            <iframe
+              src={`https://sumanonline.com/studentHub/result/index.php?roll=${encodeURIComponent(resultSearchRoll || "")}&sem=${encodeURIComponent(resultSearchSem || "")}&year=${encodeURIComponent(resultSearchYear || "")}`}
+              title="Student Result Portal"
+              onLoad={() => setIsIframeLoading(false)}
+              className="w-full h-full border-0"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
 
       {saveStatus === "success" && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 bg-slate-900/95 dark:bg-slate-800/95 text-white border border-emerald-500/40 rounded-2xl shadow-2xl shadow-emerald-950/20 backdrop-blur-md animate-in slide-in-from-right-5 fade-in duration-300">

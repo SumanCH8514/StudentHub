@@ -31,6 +31,7 @@ import {
   Sun,
   Moon
 } from "lucide-react";
+import { useTheme } from "../utils/theme";
 import Loader from "./Loader";
 import StudentHubLogo from "../assets/StudentHub-logo2.png";
 
@@ -48,31 +49,7 @@ const Auth = () => {
     newUserAlerts: true
   });
 
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return document.documentElement.classList.contains("dark");
-  });
-
-  useEffect(() => {
-    const handleThemeChange = () => {
-      setIsDarkMode(document.documentElement.classList.contains("dark"));
-    };
-
-    const observer = new MutationObserver(handleThemeChange);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-
-    return () => observer.disconnect();
-  }, []);
-
-  const toggleTheme = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("studentHub_theme", "light");
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("studentHub_theme", "dark");
-    }
-    setIsDarkMode(!isDarkMode);
-  };
+  const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "system"), (snapshot) => {

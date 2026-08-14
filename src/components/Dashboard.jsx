@@ -61,6 +61,7 @@ import Support from "./Support.jsx";
 import Assistant from "./Assistant.jsx";
 import StudentDashboard from "./StudentDashboard.jsx";
 import Loader from "./Loader.jsx";
+import { useTheme } from "../utils/theme.js";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
@@ -200,11 +201,7 @@ const Dashboard = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [fetchShared, setFetchShared] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem("studentHub_theme");
-    if (savedTheme) return savedTheme === "dark";
-    return document.documentElement.classList.contains("dark");
-  });
+  const { isDarkMode, toggleTheme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [supportTab, setSupportTab] = useState("submit");
   const [isListening, setIsListening] = useState(false);
@@ -373,28 +370,6 @@ const Dashboard = () => {
   const isSelectedToday =
     selectedDate.toDateString() === new Date().toDateString();
   const selectedDayName = getDayName(selectedDate);
-  const toggleTheme = async () => {
-    const newIsDark = !isDarkMode;
-    setIsDarkMode(newIsDark);
-    const themeStr = newIsDark ? "dark" : "light";
-    localStorage.setItem("studentHub_theme", themeStr);
-
-    if (newIsDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    const user = auth.currentUser;
-    if (user) {
-      try {
-        await setDoc(doc(db, "users", user.uid), {
-          themePreference: newIsDark ? "dark" : "light"
-        }, { merge: true });
-      } catch (err) {
-        console.error("Failed to save theme preference:", err);
-      }
-    }
-  };
 
   const handleVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -471,16 +446,12 @@ const Dashboard = () => {
           }
         }
 
-        const isDark =
-          data.themePreference === "dark" ||
-          (data.themePreference === "system" &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-        setIsDarkMode(isDark);
-        if (isDark) {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
+        if (data.themePreference) {
+          const isDark =
+            data.themePreference === "dark" ||
+            (data.themePreference === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          setTheme(isDark ? "dark" : "light");
         }
 
         const { university, stream, semester, section } = data;
@@ -1397,10 +1368,10 @@ const Dashboard = () => {
             {userRole === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
-                className="hidden xl:flex items-center gap-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-4 py-2.5 rounded-full hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all font-black uppercase tracking-widest text-[10px]"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center justify-center transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-700/60 shrink-0"
+                title="Admin Panel"
               >
-                <ShieldAlert size={14} />
-                <span>Admin Panel</span>
+                <ShieldAlert size={18} className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-rose-500" />
               </button>
             )}
             {!fetchShared && (
@@ -1531,9 +1502,10 @@ const Dashboard = () => {
             </button>
             <button
               onClick={() => { handleOpenSettings("preferences"); setIsNotificationsOpen(false); setIsProfileMenuOpen(false); }}
-              className="hidden sm:block p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-indigo-600 rounded-full transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-600"
+              className="hidden sm:flex w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-300 hover:text-indigo-600 items-center justify-center transition-all shadow-sm active:scale-95 border border-slate-100 dark:border-slate-700/60 shrink-0"
+              title="Settings"
             >
-              <SettingsIcon size={20} />
+              <SettingsIcon size={18} className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
             </button>
 
             <div className="relative hidden sm:block ml-2 group">

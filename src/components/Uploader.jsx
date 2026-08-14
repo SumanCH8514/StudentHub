@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { collection, doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import { v4 as uuidv4 } from "uuid";
@@ -7,7 +7,7 @@ import Loader from "./Loader.jsx";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://api.backend.studenthub.sumanonline.com";
 
-const Uploader = ({ onUploadSuccess }) => {
+const Uploader = ({ onUploadSuccess, hideHeader = false }) => {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -98,55 +98,57 @@ const Uploader = ({ onUploadSuccess }) => {
 
       let schedule = data.routine;
 
-      if (!Array.isArray(schedule)) {
-        if (schedule && typeof schedule === "object") {
-          const possibleArray = schedule.routine || schedule.schedule || schedule.data || schedule.classes || Object.values(schedule).find(v => Array.isArray(v));
-          if (Array.isArray(possibleArray)) {
-            schedule = possibleArray;
-          } else if (schedule.subject || schedule.day) {
-            schedule = [schedule];
-          }
+      if (schedule && !Array.isArray(schedule) && typeof schedule === "object") {
+        const firstArray = Object.values(schedule).find(val => Array.isArray(val));
+        if (firstArray) {
+          schedule = firstArray;
+        } else if (schedule.schedule || schedule.classes || schedule.routine) {
+          schedule = schedule.schedule || schedule.classes || schedule.routine;
         }
       }
 
-      if (Array.isArray(schedule) && schedule.length > 0) {
-        const batch = writeBatch(db);
-        const sharedRoutinesRef = collection(db, "shared_routines");
-
-        for (const item of schedule) {
-          const routineDocRef = doc(sharedRoutinesRef, uuidv4());
-          batch.set(routineDocRef, {
-            ...item,
-            userId: auth.currentUser.uid,
-            university,
-            stream,
-            semester,
-            section,
-            createdAt: new Date().toISOString(),
-          });
-        }
-        await batch.commit();
-      } else {
-        throw new Error("AI did not return a valid schedule format.");
+      if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
+        throw new Error("AI could not detect valid class schedule entries. Ensure image is clear.");
       }
+
+      const targetPath = `routines/${university}/${stream}/${semester}/${section}/classes`;
+      const targetColRef = collection(db, targetPath);
+
+      const batch = writeBatch(db);
+
+      schedule.forEach((cls) => {
+        if (!cls.day || !cls.subject) return;
+
+        const cleanClass = {
+          day: cls.day,
+          subject: cls.subject,
+          room: cls.room || "TBA",
+          teacher: cls.teacher || cls.faculty || "TBA",
+          startTime: cls.startTime || cls.time?.split("-")[0]?.trim() || "09:00 AM",
+          endTime: cls.endTime || cls.time?.split("-")[1]?.trim() || "10:00 AM",
+          type: cls.type || (cls.subject?.toLowerCase().includes("lab") ? "Lab" : "Lecture"),
+          syncedAt: new Date().toISOString(),
+          uploadedBy: auth.currentUser.uid,
+          university,
+          stream,
+          semester,
+          section
+        };
+
+        const docRef = doc(targetColRef, uuidv4());
+        batch.set(docRef, cleanClass);
+      });
+
+      await batch.commit();
+
       if (onUploadSuccess) onUploadSuccess();
-    } catch (e) {
-      console.error("Upload error details:", e);
-      let rawMsg = e.message || "";
-      let errorMsg = "Failed to parse and save the routine. Please contact administrator for further assistance.";
-      
-      if (rawMsg.includes("valid schedule format") || rawMsg.includes("unable to parse images")) {
-        errorMsg = "Could not extract class schedule from image. Please ensure the routine image is clear and readable.";
-      } else if (rawMsg.includes("429") || rawMsg.toLowerCase().includes("quota") || rawMsg.toLowerCase().includes("rate limit")) {
-        errorMsg = "AI Rate Limit Exceeded (429). Please try again in a minute or contact administrator.";
-      } else if (rawMsg.includes("401") || rawMsg.toLowerCase().includes("invalid api key")) {
-        errorMsg = "Groq API Key Invalid (401). Please check GROQ_API_KEY in Cloudflare backend.";
-      } else if (rawMsg.includes("403") || rawMsg.toLowerCase().includes("forbidden") || rawMsg.toLowerCase().includes("permission")) {
-        errorMsg = "AI Access Denied (403). Please contact administrator for further assistance.";
-      } else if (rawMsg.includes("404")) {
-        errorMsg = "AI Model Service Unavailable (404). Please contact administrator for further assistance.";
-      } else if (rawMsg.includes("400")) {
-        errorMsg = "AI Vision could not process this image format. Is it corrupt or unreadable?";
+    } catch (err) {
+      console.error(err);
+      let errorMsg = "Something went wrong while parsing the image. Please try again.";
+      const rawMsg = err.message || "";
+
+      if (rawMsg.includes("400") || rawMsg.includes("Vision")) {
+        errorMsg = "AI failed to parse text from image. Make sure image is clear and high resolution.";
       } else if (rawMsg.includes("Incomplete profile") || rawMsg.includes("Authentication required") || rawMsg.includes("Please update your profile")) {
         errorMsg = rawMsg;
       } else if (rawMsg) {
@@ -160,50 +162,41 @@ const Uploader = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="p-5 sm:p-8 md:p-10 w-full relative bg-white dark:bg-slate-900 transition-colors">
-      <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 shadow-xl shadow-indigo-500/25 text-white flex items-center justify-center mb-4 transition-transform hover:scale-110 duration-300">
-          <Sparkles size={28} className="animate-pulse" />
+    <div className={`w-full relative transition-colors ${!hideHeader ? "p-5 sm:p-8 bg-white dark:bg-slate-900" : ""}`}>
+      {!hideHeader && (
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mb-3">
+            <UploadCloud size={24} />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Upload Routine
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1">
+            Upload your class schedule timetable to sync
+          </p>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-900 dark:text-white">
-          Sync <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-400 dark:to-purple-400">Schedule</span>
-        </h2>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-[11px] font-bold rounded-full border border-indigo-100 dark:border-indigo-900/40 mt-3">
-          <span>✨ Powered by StudentHub Vision AI</span>
-        </div>
-      </div>
+      )}
 
       {!image ? (
         <label
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-[2.25rem] p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group mb-6 shadow-inner relative overflow-hidden ${
+          className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group mb-5 ${
             isDragging
-              ? "border-indigo-500 bg-indigo-100/60 dark:bg-indigo-950/60 ring-4 ring-indigo-500/20 scale-[1.02]"
-              : "border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-slate-800/40 hover:bg-indigo-50/60 dark:hover:bg-slate-800/80 hover:border-indigo-500 dark:hover:border-indigo-400"
+              ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30"
+              : "border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/60"
           }`}
         >
-          <div className={`p-4 sm:p-5 rounded-2xl mb-4 shadow-xl transition-all duration-300 shrink-0 ${
-            isDragging ? "bg-indigo-600 text-white scale-110 animate-bounce" : "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 group-hover:rotate-3"
-          }`}>
-            <UploadCloud
-              size={36}
-            />
+          <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3.5 shadow-xs group-hover:scale-105 transition-transform">
+            <UploadCloud size={28} />
           </div>
-          <span className="font-black text-slate-800 dark:text-white text-lg sm:text-xl text-center leading-tight">
-            {isDragging ? "Drop your image file here!" : "Drag & Drop, Paste (Ctrl+V) or Click to browse"}
-          </span>
-          <p className="text-slate-400 dark:text-slate-500 text-xs sm:text-sm font-medium mt-2 text-center">
-            Upload your official class schedule or exam timetable
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-sm sm:text-base text-center">
+            {isDragging ? "Drop your file here" : "Click to browse, drag & drop, or paste (Ctrl+V)"}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-            {["JPG", "PNG", "WEBP", "PDF"].map((fmt) => (
-              <span key={fmt} className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold rounded-md uppercase tracking-wider border border-slate-200/60 dark:border-slate-700">
-                {fmt}
-              </span>
-            ))}
-          </div>
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 text-center font-medium">
+            Supports PNG, JPG, WEBP, or official PDF timetables
+          </p>
           <input
             type="file"
             accept="image/*,application/pdf"
