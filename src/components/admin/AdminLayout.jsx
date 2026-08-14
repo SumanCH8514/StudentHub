@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTheme } from "../../utils/theme";
+import { LanguageSwitcher } from "../../utils/language.jsx";
 import {
     Search,
     Menu,
@@ -50,7 +51,9 @@ const AdminLayout = ({
     children,
     activeTab,
     setActiveTab,
+    userName = "Administrator",
     adminName = "Administrator",
+    userEmail = "admin@studenthub.com",
     adminRole = "System Admin",
     userPhoto,
     onLogout,
@@ -63,28 +66,7 @@ const AdminLayout = ({
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsMenuOpen, setIsNotificationsMenuOpen] = useState(false);
-    const [showTranslate, setShowTranslate] = useState(false);
-
-    // Calculate unread
     const unreadCount = notifications.filter(n => !n.readBy?.includes(currentUserId)).length;
-
-    const handleTranslate = () => {
-        setShowTranslate(!showTranslate);
-        if (!document.getElementById('google-translate-script')) {
-            const addScript = document.createElement('script');
-            addScript.id = 'google-translate-script';
-            addScript.setAttribute('src', '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit');
-            document.body.appendChild(addScript);
-
-            window.googleTranslateElementInit = () => {
-                new window.google.translate.TranslateElement({
-                    pageLanguage: 'en',
-                    includedLanguages: 'en,bn,hi',
-                    layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
-                }, 'google_translate_element');
-            };
-        }
-    };
 
     const navItems = [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -322,18 +304,11 @@ const AdminLayout = ({
 
             {/* --- MAIN CONTENT AREA --- */}
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+                {/* Hidden Google Translate container for background engine */}
+                <div id="google_translate_element_hidden" className="hidden opacity-0 pointer-events-none absolute -left-[9999px]"></div>
+
                 {/* TOP NAVBAR */}
                 <header className="px-4 sm:px-6 py-3 sm:py-4 xl:px-8 mt-2 sm:mt-4 z-10 relative">
-                    {/* Translate Dropdown Container */}
-                    <div
-                        id="google_translate_element"
-                        className={cn(
-                            "absolute top-[70px] right-8 bg-white p-2 rounded-xl shadow-lg border border-slate-200 z-50 transition-all",
-                            showTranslate ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"
-                        )}
-                        style={{ minHeight: '40px', minWidth: '150px' }}
-                    ></div>
-
                     <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 px-4 py-2 h-[62px] transition-colors duration-300">
                         {/* Left: Mobile Toggle & Search */}
                         <div className="flex items-center gap-3 flex-1">
@@ -357,13 +332,8 @@ const AdminLayout = ({
                         {/* Right: Actions & User Info */}
                         <div className="flex items-center gap-1 sm:gap-3 shrink-0">
                             <div className="flex items-center gap-0.5 sm:gap-1">
-                                <button
-                                    onClick={handleTranslate}
-                                    className="hidden sm:flex p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 active:scale-95 rounded-full transition-all"
-                                    title="Language"
-                                >
-                                    <Globe size={22} />
-                                </button>
+                                <LanguageSwitcher variant="compact" align="right" />
+
                                 <button
                                     onClick={handleDarkMode}
                                     className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 rounded-full transition-all"
@@ -415,47 +385,59 @@ const AdminLayout = ({
 
                     {/* Global Notifications Dropdown */}
                     {isNotificationsMenuOpen && (
-                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-80 sm:w-96 max-h-[70vh] flex flex-col bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                    <Bell size={16} className="text-indigo-500" />
+                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-80 sm:w-96 max-h-[70vh] flex flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-200/50 dark:shadow-slate-950/60 border border-slate-200/80 dark:border-slate-700 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-4 border-b border-slate-100 dark:border-slate-700/80 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/50">
+                                <h3 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                                    <Bell size={16} className="text-indigo-500 dark:text-indigo-400" />
                                     Notifications
                                 </h3>
                                 {unreadCount > 0 && (
-                                    <span className="text-xs font-bold text-white bg-indigo-500 px-2 py-0.5 rounded-full">
+                                    <span className="text-[11px] font-bold text-white bg-indigo-600 dark:bg-indigo-500 px-2 py-0.5 rounded-full shadow-xs">
                                         {unreadCount} New
                                     </span>
                                 )}
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 divide-y divide-slate-100 dark:divide-slate-700/50">
                                 {notifications.length === 0 ? (
-                                    <div className="text-center p-6 text-slate-500 text-sm">
+                                    <div className="text-center p-6 text-slate-500 dark:text-slate-400 text-xs font-medium">
                                         No notifications yet.
                                     </div>
                                 ) : (
                                     notifications.map(notif => {
                                         const isUnread = !notif.readBy?.includes(currentUserId);
                                         return (
-                                            <div key={notif.id} className={cn("p-3 rounded-lg flex gap-3 mb-1", isUnread ? "bg-indigo-50/50" : "hover:bg-slate-50 transition-colors")}>
-                                                <div className={cn("w-2 h-2 rounded-full mt-2 shrink-0", isUnread ? "bg-indigo-500 animate-pulse" : "bg-slate-300")} />
+                                            <div
+                                                key={notif.id}
+                                                className={cn(
+                                                    "p-3 rounded-xl flex gap-3 transition-colors",
+                                                    isUnread
+                                                        ? "bg-indigo-50/60 dark:bg-indigo-950/40"
+                                                        : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", isUnread ? "bg-indigo-500 animate-pulse" : "bg-slate-300 dark:bg-slate-600")} />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={cn("text-sm", isUnread ? "font-bold text-slate-800" : "font-medium text-slate-700")}>{notif.title}</p>
-                                                    <p className="text-xs text-slate-500 mt-0.5">{notif.message}</p>
-                                                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
+                                                    <p className={cn("text-xs sm:text-sm", isUnread ? "font-bold text-slate-900 dark:text-white" : "font-semibold text-slate-700 dark:text-slate-300")}>
+                                                        {notif.title}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                                                        {notif.message}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider font-semibold">
                                                         {notif.timestamp?.toDate ? notif.timestamp.toDate().toLocaleString() : "Just now"}
                                                     </p>
                                                 </div>
                                                 {isUnread && (
                                                     <button
                                                         onClick={() => onMarkNotificationRead?.(notif.id)}
-                                                        className="shrink-0 p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-md transition-all self-center"
+                                                        className="shrink-0 p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-all self-center"
                                                         title="Mark as Read"
                                                     >
                                                         <CheckCircle2 size={16} />
                                                     </button>
                                                 )}
                                             </div>
-                                        )
+                                        );
                                     })
                                 )}
                             </div>
@@ -464,9 +446,9 @@ const AdminLayout = ({
 
                     {/* Global Profile Dropdown (Anchored to Header Right) */}
                     {isProfileMenuOpen && (
-                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-64 sm:w-72 bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                <div className="w-12 h-12 rounded-full bg-white border-2 border-indigo-100 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                        <div className="absolute right-4 sm:right-6 xl:right-8 top-[calc(100%+12px)] w-64 sm:w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl shadow-slate-200/50 dark:shadow-slate-950/60 border border-slate-200/80 dark:border-slate-700 flex flex-col z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-4 border-b border-slate-100 dark:border-slate-700/80 flex items-center gap-3 bg-slate-50/70 dark:bg-slate-900/50">
+                                <div className="w-11 h-11 rounded-full bg-white dark:bg-slate-800 border-2 border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
                                     <img
                                         src={userPhoto || defaultProfileImg}
                                         alt="Profile"
@@ -474,21 +456,21 @@ const AdminLayout = ({
                                     />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-bold text-slate-800 text-[15px] truncate">{userName || "Admin User"}</p>
-                                    <p className="text-slate-500 text-xs truncate">{userEmail || "admin@studenthub.com"}</p>
+                                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{userName || "Admin User"}</p>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs truncate font-medium">{userEmail || "admin@studenthub.com"}</p>
                                 </div>
                             </div>
 
-                            <div className="p-2 flex flex-col">
+                            <div className="p-2 flex flex-col space-y-1">
                                 <button
                                     onClick={() => {
                                         setActiveTab('profile');
                                         setIsProfileMenuOpen(false);
                                     }}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-lg transition-all text-left group"
+                                    className="flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-slate-700/60 rounded-xl transition-all text-left group cursor-pointer"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
-                                        <User size={18} className="group-hover:text-indigo-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-950/60 flex items-center justify-center transition-colors">
+                                        <User size={16} className="text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
                                     </div>
                                     My Profile
                                 </button>
@@ -497,21 +479,21 @@ const AdminLayout = ({
                                         setActiveTab('settings');
                                         setIsProfileMenuOpen(false);
                                     }}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-lg transition-all text-left group"
+                                    className="flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-slate-700/60 rounded-xl transition-all text-left group cursor-pointer"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
-                                        <SettingsIcon size={18} className="group-hover:text-indigo-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-950/60 flex items-center justify-center transition-colors">
+                                        <SettingsIcon size={16} className="text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
                                     </div>
                                     Settings
                                 </button>
                             </div>
 
-                            <div className="p-3 border-t border-slate-100 bg-slate-50/30">
+                            <div className="p-3 border-t border-slate-100 dark:border-slate-700/80 bg-slate-50/40 dark:bg-slate-900/30">
                                 <button
                                     onClick={onLogout}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all font-bold shadow-sm shadow-rose-100 border border-rose-100 active:scale-95"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl transition-all font-bold shadow-xs border border-rose-100 dark:border-rose-900/50 active:scale-95 cursor-pointer"
                                 >
-                                    <LogOut size={16} />
+                                    <LogOut size={15} />
                                     Logout Account
                                 </button>
                             </div>

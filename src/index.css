@@ -230,3 +230,30 @@ button {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+iframe.goog-te-banner-frame,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
+}
+
+body > .skiptranslate {
+  display: none !important;
+}
+
+#google_translate_element_hidden {
+  display: none !important;
+}

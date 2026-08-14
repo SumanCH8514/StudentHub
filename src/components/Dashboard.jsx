@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import favLogo from "../assets/fav.png";
 import {
   collection,
@@ -17,6 +17,7 @@ import { signOut } from "firebase/auth";
 import { onMessage } from "firebase/messaging";
 import { notificationService } from "../utils/NotificationService";
 import { useAcademicConfig } from "../utils/academicConfig";
+import { LanguageSwitcher } from "../utils/language.jsx";
 import {
   LayoutDashboard,
   LogOut,
@@ -36,6 +37,7 @@ import {
   ChevronDown,
   Search,
   Mic,
+  MicOff,
   Sun,
   Moon,
   Sparkles,
@@ -205,6 +207,7 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [supportTab, setSupportTab] = useState("submit");
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
   const [holidays, setHolidays] = useState([]);
   const [systemUpdates, setSystemUpdates] = useState([]);
   const [readUpdates, setReadUpdates] = useState([]);
@@ -374,34 +377,62 @@ const Dashboard = () => {
   const handleVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice search is not supported in your browser.");
+      alert("Voice search is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Apple Safari.");
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
+    if (isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
       setIsListening(false);
-    };
+      return;
+    }
 
-    recognition.onend = () => {
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = navigator.language || "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        let transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setSearchQuery(transcript);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn("Speech recognition error:", event.error);
+        setIsListening(false);
+        if (event.error === "not-allowed" || event.error === "permission-denied") {
+          alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice search.");
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
       setIsListening(false);
-    };
-
-    recognition.start();
+    }
   };
 
   useEffect(() => {
@@ -1314,9 +1345,9 @@ const Dashboard = () => {
         </aside>
       </div>
 
-      <div className="relative z-10 w-full px-3 py-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
+      <div className="relative z-10 w-full px-4 py-6 sm:px-6 md:px-10 lg:px-16 xl:px-24">
         {/* Floating Pill Header */}
-        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3 py-2 sm:px-5 sm:py-3 rounded-full sm:rounded-[2.5rem] shadow-xl sm:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 w-full max-w-full">
+        <header className="relative z-50 flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-2.5 sm:px-6 sm:py-4 rounded-full sm:rounded-[2.5rem] shadow-xl sm:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
           {/* Left: Branding */}
           <div className="flex items-center gap-2 sm:gap-3 pl-1 shrink-0">
             <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-[0.8rem] sm:rounded-[1rem] overflow-hidden shadow-md shrink-0 flex items-center justify-center">
@@ -1350,14 +1381,17 @@ const Dashboard = () => {
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={handleVoiceSearch}
                   className={cn(
-                    "p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-500 transition-all active:scale-90",
-                    isListening && "text-rose-500 bg-rose-50 dark:bg-rose-900/20 animate-pulse"
+                    "p-1.5 rounded-lg transition-all active:scale-90 flex items-center justify-center cursor-pointer",
+                    isListening
+                      ? "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 ring-2 ring-rose-500/50 animate-pulse shadow-sm"
+                      : "text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                   )}
-                  title={isListening ? "Listening..." : "Voice Search"}
+                  title={isListening ? "Listening... Click to stop" : "Voice Search"}
                 >
-                  <Mic size={16} />
+                  {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
               </div>
             </div>
@@ -2177,6 +2211,9 @@ const Dashboard = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-indigo-500 transition-colors shrink-0" />
                   <span>Terms of Service</span>
                 </button>
+                <div className="pt-1.5">
+                  <LanguageSwitcher variant="pill" align="left" direction="up" />
+                </div>
               </div>
 
             </div>

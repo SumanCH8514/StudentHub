@@ -56,6 +56,9 @@ import AdminAssistantQA from "./admin/AdminAssistantQA.jsx";
 import AdminAssistantHistory from "./admin/AdminAssistantHistory.jsx";
 import AdminAssistantSettings from "./admin/AdminAssistantSettings.jsx";
 import AdminAcademicConfig from "./admin/AdminAcademicConfig.jsx";
+import AdminGlobalSystemReset from "./admin/AdminGlobalSystemReset.jsx";
+import AdminHolidaysDelete from "./admin/AdminHolidaysDelete.jsx";
+import AdminClassesPurge from "./admin/AdminClassesPurge.jsx";
 import { useNavigate } from "react-router-dom";
 
 const cn = (...inputs) => {
@@ -168,7 +171,7 @@ const AdminPanel = () => {
       try {
         const qpRef = doc(db, "settings", "question_papers");
         const smRef = doc(db, "settings", "study_materials");
-        
+
         const [qpDoc, smDoc] = await Promise.allSettled([
           getDoc(qpRef),
           getDoc(smRef)
@@ -442,7 +445,7 @@ const AdminPanel = () => {
     }
   };
 
-  // Fetch subjects for Link Managers
+
   useEffect(() => {
     if (activeTab !== 'upload-question-papers') return;
     const fetchQpSubjects = async () => {
@@ -490,13 +493,13 @@ const AdminPanel = () => {
   }, [smSelection, activeTab]);
 
   const updateSystemSetting = async (key, value) => {
-    // Optimistic update
+
     setSystemSettings(prev => ({ ...prev, [key]: value }));
     try {
       await setDoc(doc(db, "settings", "system"), { [key]: value }, { merge: true });
     } catch (err) {
       console.error(`Failed to update system setting ${key}:`, err);
-      // Rollback
+
       const systemDoc = await getDoc(doc(db, "settings", "system"));
       if (systemDoc.exists()) {
         const data = systemDoc.data();
@@ -527,6 +530,7 @@ const AdminPanel = () => {
           usersCount={users.length}
           classesCount={classesCount}
           users={users}
+          setActiveTab={setActiveTab}
         />
       )}
 
@@ -843,41 +847,41 @@ const AdminPanel = () => {
                   </button>
                 </div>
                 <div className="md:w-72 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700">
-                   <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">Subject Status</h4>
-                   <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                     {qpSubjects.length > 0 ? qpSubjects.map(sub => {
-                       const linkKey = `${qpSelection.university}_${qpSelection.stream}_${qpSelection.semester}_${sub}`;
-                       return (
-                         <div 
-                           key={sub} 
-                           onClick={() => {
-                             setSelectedQpSubject(sub);
-                             setCustomLink(qpLinks[linkKey] || "");
-                           }}
-                           className={cn(
-                             "flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm cursor-pointer active:scale-95 group/sub",
-                             selectedQpSubject === sub 
-                               ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700 ring-1 ring-indigo-500/20" 
-                               : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800"
-                           )}
-                         >
-                           <span className={cn(
-                             "text-xs font-bold truncate pr-2",
-                             selectedQpSubject === sub ? "text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-slate-200"
-                           )}>{sub}</span>
-                           {qpLinks[linkKey] ? (
-                             <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                               <CheckIcon size={12} />
-                             </div>
-                           ) : (
-                             <div className="w-5 h-5 bg-slate-100 dark:bg-slate-900 text-slate-300 group-hover/sub:text-indigo-400 transition-colors rounded-full flex items-center justify-center flex-shrink-0">
-                               <LinkIcon size={12} />
-                             </div>
-                           )}
-                         </div>
-                       );
-                     }) : <p className="text-[10px] text-center text-slate-400 py-4 italic">No subjects found.</p>}
-                   </div>
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">Subject Status</h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                    {qpSubjects.length > 0 ? qpSubjects.map(sub => {
+                      const linkKey = `${qpSelection.university}_${qpSelection.stream}_${qpSelection.semester}_${sub}`;
+                      return (
+                        <div
+                          key={sub}
+                          onClick={() => {
+                            setSelectedQpSubject(sub);
+                            setCustomLink(qpLinks[linkKey] || "");
+                          }}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm cursor-pointer active:scale-95 group/sub",
+                            selectedQpSubject === sub
+                              ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700 ring-1 ring-indigo-500/20"
+                              : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800"
+                          )}
+                        >
+                          <span className={cn(
+                            "text-xs font-bold truncate pr-2",
+                            selectedQpSubject === sub ? "text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-slate-200"
+                          )}>{sub}</span>
+                          {qpLinks[linkKey] ? (
+                            <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
+                              <CheckIcon size={12} />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 bg-slate-100 dark:bg-slate-900 text-slate-300 group-hover/sub:text-indigo-400 transition-colors rounded-full flex items-center justify-center flex-shrink-0">
+                              <LinkIcon size={12} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }) : <p className="text-[10px] text-center text-slate-400 py-4 italic">No subjects found.</p>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1045,68 +1049,68 @@ const AdminPanel = () => {
                   </button>
                 </div>
                 <div className="md:w-72 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700">
-                   <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">Subject Status</h4>
-                   <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                      {smSubjects.length > 0 ? smSubjects.map(sub => {
-                        const baseKey = `${smSelection.university}_${smSelection.stream}_${smSelection.semester}_${sub}`;
-                        const bookLink = smLinks[`${baseKey}_book`];
-                        const notesLink = smLinks[`${baseKey}_notes`];
-                        return (
-                          <div 
-                            key={sub} 
-                            onClick={() => {
-                              setSelectedSmSubject(sub);
-                              const linkKey = `${baseKey}_${smMaterialType}`;
-                              setCustomLink(smLinks[linkKey] || "");
-                            }}
-                            className={cn(
-                              "flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm cursor-pointer active:scale-95 group/sm",
-                              selectedSmSubject === sub 
-                                ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 ring-1 ring-emerald-500/20" 
-                                : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800"
-                            )}
-                          >
-                            <div className="flex flex-col min-w-0">
-                               <span className={cn(
-                                 "text-xs font-bold truncate pr-2",
-                                 selectedSmSubject === sub ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"
-                               )}>{sub}</span>
-                               <div className="flex gap-1.5 mt-1">
-                                  <div className={cn(
-                                    "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
-                                    bookLink ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900"
-                                  )}>
-                                    <BookOpen size={8} />
-                                    Book
-                                  </div>
-                                  <div className={cn(
-                                    "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
-                                    notesLink ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900"
-                                  )}>
-                                    <FileText size={8} />
-                                    Notes
-                                  </div>
-                               </div>
-                            </div>
-                            <div className="flex-shrink-0">
-                               {bookLink && notesLink ? (
-                                 <div className="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                   <CheckIcon size={12} />
-                                 </div>
-                               ) : (bookLink || notesLink) ? (
-                                 <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
-                                   <LinkIcon size={12} />
-                                 </div>
-                               ) : (
-                                 <div className="w-5 h-5 bg-slate-100 dark:bg-slate-900 text-slate-300 group-hover/sm:text-emerald-400 transition-colors rounded-full flex items-center justify-center">
-                                   <LinkIcon size={12} />
-                                 </div>
-                               )}
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">Subject Status</h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                    {smSubjects.length > 0 ? smSubjects.map(sub => {
+                      const baseKey = `${smSelection.university}_${smSelection.stream}_${smSelection.semester}_${sub}`;
+                      const bookLink = smLinks[`${baseKey}_book`];
+                      const notesLink = smLinks[`${baseKey}_notes`];
+                      return (
+                        <div
+                          key={sub}
+                          onClick={() => {
+                            setSelectedSmSubject(sub);
+                            const linkKey = `${baseKey}_${smMaterialType}`;
+                            setCustomLink(smLinks[linkKey] || "");
+                          }}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm cursor-pointer active:scale-95 group/sm",
+                            selectedSmSubject === sub
+                              ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 ring-1 ring-emerald-500/20"
+                              : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800"
+                          )}
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn(
+                              "text-xs font-bold truncate pr-2",
+                              selectedSmSubject === sub ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"
+                            )}>{sub}</span>
+                            <div className="flex gap-1.5 mt-1">
+                              <div className={cn(
+                                "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                                bookLink ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900"
+                              )}>
+                                <BookOpen size={8} />
+                                Book
+                              </div>
+                              <div className={cn(
+                                "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                                notesLink ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100 text-slate-400 dark:bg-slate-900"
+                              )}>
+                                <FileText size={8} />
+                                Notes
+                              </div>
                             </div>
                           </div>
-                        );
-                      }) : <p className="text-[10px] text-center text-slate-400 py-4 italic">No subjects found.</p>}
-                   </div>
+                          <div className="flex-shrink-0">
+                            {bookLink && notesLink ? (
+                              <div className="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                <CheckIcon size={12} />
+                              </div>
+                            ) : (bookLink || notesLink) ? (
+                              <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
+                                <LinkIcon size={12} />
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 bg-slate-100 dark:bg-slate-900 text-slate-300 group-hover/sm:text-emerald-400 transition-colors rounded-full flex items-center justify-center">
+                                <LinkIcon size={12} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }) : <p className="text-[10px] text-center text-slate-400 py-4 italic">No subjects found.</p>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1120,198 +1124,25 @@ const AdminPanel = () => {
       {activeTab === "ai-history" && <AdminAssistantHistory />}
       {activeTab === "ai-settings" && <AdminAssistantSettings />}
 
-      {/* ── DATABASE: Global System Reset ── */}
       {activeTab === "db-reset" && (
-        <div className="space-y-6">
-          <div className="bg-red-50 dark:bg-rose-900/10 border border-red-200 dark:border-rose-900/30 rounded-3xl p-8 xl:p-12 text-center max-w-4xl mx-auto shadow-sm">
-            <div className="w-20 h-20 bg-red-100 dark:bg-rose-900/30 rounded-full flex flex-col items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white dark:ring-slate-800">
-              <Activity size={36} className="text-red-500" />
-            </div>
-            <h2 className="text-3xl font-black text-red-600 dark:text-rose-500 mb-3 tracking-tight">GLOBAL SYSTEM RESET</h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8 font-medium leading-relaxed">
-              WARNING: This will completely wipe all critical system data, restoring the platform to a blank slate. This action <span className="text-red-600 font-bold underline">cannot be undone</span>.
-            </p>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 text-left max-w-lg mx-auto mb-8 border border-red-100 dark:border-slate-700 shadow-sm">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3">Items deleted during reset:</h4>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400 font-medium list-disc pl-5">
-                <li>All User Profiles & Data</li>
-                <li>All Uploaded Class Routines</li>
-                <li>Global Holiday Calendar</li>
-                <li>System Logs & Analytics</li>
-              </ul>
-            </div>
-
-            <button
-              onClick={initiateFullSystemReset}
-              disabled={isWiping}
-              className="flex flex-col items-center gap-1.5 px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg transition-all mx-auto shadow-xl shadow-red-500/20 active:scale-95 group w-full sm:w-auto"
-            >
-              {isWiping ? (
-                <Loader inline size="sm" />
-              ) : (
-                <>
-                  <span>CONFIRM SYSTEM RESET</span>
-                  <span className="text-xs font-medium text-red-200 uppercase tracking-widest">Wipes All Global Data</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        <AdminGlobalSystemReset
+          initiateFullSystemReset={initiateFullSystemReset}
+          isWiping={isWiping}
+        />
       )}
 
-      {/* ── DATABASE: Delete Holiday List ── */}
       {activeTab === "db-del-holidays" && (
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 xl:p-12 text-center max-w-2xl mx-auto border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <CalendarDays size={32} className="text-rose-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Wipe Holiday Calendar</h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">
-              This action will permanently delete all parsed holiday events from the global database. Students will see an empty calendar until a new list is uploaded.
-            </p>
-            <button
-              onClick={async () => {
-                if (window.confirm("Are you absolutely sure you want to delete the entire Holiday List?")) {
-                  try {
-                    const snapshot = await getDocs(collection(db, "holidays"));
-                    const batch = writeBatch(db);
-                    snapshot.docs.forEach((d) => batch.delete(d.ref));
-                    await batch.commit();
-                    alert("Holiday list deleted.");
-                  } catch (err) {
-                    alert("Error deleting holidays: " + err.message);
-                  }
-                }
-              }}
-              className="flex items-center gap-2 px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold transition-all mx-auto shadow-md shadow-rose-600/20 active:scale-95"
-            >
-              <Trash2 size={18} />
-              Delete All Holidays
-            </button>
-          </div>
-        </div>
+        <AdminHolidaysDelete />
       )}
 
-      {/* ── DATABASE: Delete Classes ── */}
       {activeTab === "db-del-classes" && (
-        <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
-          {/* Targeted Deletion Card */}
-          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 border border-slate-200/80 dark:border-slate-700/80 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
-            
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-11 h-11 bg-indigo-50 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50 shadow-sm shrink-0">
-                <Trash2 size={22} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-xl tracking-tight">Purge Specific Classes</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select course stream parameters to purge class entries from database.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">University</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <BookOpen size={15} />
-                  </div>
-                  <select
-                    value={deleteFilter.university}
-                    onChange={(e) => setDeleteFilter({ ...deleteFilter, university: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
-                  >
-                    <option value="SVU">SVU</option>
-                    <option value="Regent">Regent</option>
-                    <option value="Others">Others</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Stream</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <GraduationCap size={15} />
-                  </div>
-                  <select
-                    value={deleteFilter.stream}
-                    onChange={(e) => setDeleteFilter({ ...deleteFilter, stream: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
-                  >
-                    <option value="B.Tech">B.Tech</option>
-                    <option value="BCA">BCA</option>
-                    <option value="ANCS">ANCS</option>
-                    <option value="DIPLOMA">DIPLOMA</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Semester</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <CalendarDays size={15} />
-                  </div>
-                  <select
-                    value={deleteFilter.semester}
-                    onChange={(e) => setDeleteFilter({ ...deleteFilter, semester: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sem {n}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Section</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <UsersIcon size={15} />
-                  </div>
-                  <select
-                    value={deleteFilter.section}
-                    onChange={(e) => setDeleteFilter({ ...deleteFilter, section: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-indigo-500/30 transition-all text-slate-800 dark:text-slate-100 appearance-none cursor-pointer shadow-xs"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n.toString()}>Sec {n}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={deleteFilteredClasses}
-              disabled={isWiping}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-indigo-500/25 active:scale-95 disabled:opacity-50"
-            >
-              <Trash2 size={18} />
-              <span>{isWiping ? "Purging Classes..." : "Purge Selected Classes"}</span>
-            </button>
-          </div>
-
-          {/* Danger Zone: Global Wipe */}
-          <div className="bg-gradient-to-br from-rose-50/50 via-white to-rose-50/30 dark:from-rose-950/20 dark:via-slate-800/80 dark:to-rose-950/10 rounded-[2rem] p-6 sm:p-8 border border-rose-200/70 dark:border-rose-900/40 text-center shadow-lg relative overflow-hidden">
-            <div className="w-14 h-14 bg-rose-500/10 dark:bg-rose-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50">
-              <AlertTriangle size={28} />
-            </div>
-            <h3 className="text-xl font-black text-rose-700 dark:text-rose-400 mb-1.5 tracking-tight">Danger Zone: Global Purge</h3>
-            <p className="text-rose-600/80 dark:text-rose-300/60 text-xs sm:text-sm font-medium max-w-md mx-auto mb-6 leading-relaxed">
-              Permanently delete all class shared routines across all universities, streams, and semesters. Use only for end-of-semester cleanup.
-            </p>
-            <button
-              onClick={wipeGlobalClasses}
-              disabled={isWiping}
-              className="flex items-center justify-center gap-2 px-8 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm transition-all mx-auto shadow-lg shadow-rose-600/25 active:scale-95 disabled:opacity-50 w-full sm:w-auto"
-            >
-              <Trash2 size={18} />
-              <span>{isWiping ? "Wiping Database..." : "Wipe All Classes"}</span>
-            </button>
-          </div>
-        </div>
+        <AdminClassesPurge
+          deleteFilter={deleteFilter}
+          setDeleteFilter={setDeleteFilter}
+          deleteFilteredClasses={deleteFilteredClasses}
+          wipeGlobalClasses={wipeGlobalClasses}
+          isWiping={isWiping}
+        />
       )}
 
       {/* ── SUPPORT PORTAL ROUTES ── */}

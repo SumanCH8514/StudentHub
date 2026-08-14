@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Footer from "./Footer";
-import { auth, db, googleProvider } from "../firebaseConfig";
+import { auth, db, googleProvider, facebookProvider } from "../firebaseConfig";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -9,31 +9,28 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, onSnapshot, collection, getDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, onSnapshot, getDoc } from "firebase/firestore";
 import {
   User,
   Mail,
   Lock,
-  Shield,
-  ShieldAlert,
-  FileText,
   Eye,
   EyeOff,
-  Sparkles,
   ArrowRight,
   BookOpen,
-  Layout,
+  Calendar,
+  Clock,
+  MapPin,
   CheckCircle2,
-  Zap,
-  Bell,
-  Award,
-  Cpu,
+  AlertCircle,
   Sun,
-  Moon
+  Moon,
+  ShieldCheck,
+  GraduationCap
 } from "lucide-react";
 import { useTheme } from "../utils/theme";
+import { LanguageSwitcher } from "../utils/language.jsx";
 import Loader from "./Loader";
-import StudentHubLogo from "../assets/StudentHub-logo2.png";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -77,17 +74,18 @@ const Auth = () => {
     const code = codeMatch ? codeMatch[1] : errorMsg;
 
     const errorMap = {
-      "auth/popup-closed-by-user": "Error: PopUp Closed by User",
-      "auth/user-not-found": "Error: User Not Found",
-      "auth/wrong-password": "Error: Incorrect Password",
-      "auth/email-already-in-use": "Error: Email Already Registered",
-      "auth/invalid-email": "Error: Invalid Email Address",
-      "auth/weak-password": "Error: Password is too weak",
-      "auth/too-many-requests": "Error: Account temporarily locked. Try later.",
-      "auth/network-request-failed": "Error: Network Error. Check connection.",
-      "auth/internal-error": "Error: Internal System Error",
-      "auth/invalid-credential": "Error: Invalid Login Credentials",
-      "auth/operation-not-allowed": "Error: Authentication Method Disabled"
+      "auth/popup-closed-by-user": "Sign-in popup was closed before completing.",
+      "auth/user-not-found": "No account found with this email address.",
+      "auth/wrong-password": "Incorrect password. Please try again.",
+      "auth/email-already-in-use": "This email is already registered.",
+      "auth/invalid-email": "Please enter a valid email address.",
+      "auth/weak-password": "Password must be at least 6 characters.",
+      "auth/too-many-requests": "Too many attempts. Please wait a few minutes.",
+      "auth/network-request-failed": "Network error. Please check your connection.",
+      "auth/internal-error": "An internal error occurred. Please try again.",
+      "auth/invalid-credential": "Invalid login credentials.",
+      "auth/operation-not-allowed": "Facebook login is not enabled in Firebase Console. Please enable Facebook in Firebase Console > Authentication > Sign-in method.",
+      "auth/account-exists-with-different-credential": "An account already exists with the same email address using Google or Email."
     };
 
     if (errorMap[code]) return errorMap[code];
@@ -99,40 +97,53 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccessMessage("");
+
+    if (!isLogin && !systemSettings.allowPublicRegistration) {
+      setError("Registration is currently restricted to authorized students.");
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        const userCred = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
-        await updateProfile(userCred.user, { displayName: name });
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        await setDoc(doc(db, "users", userCred.user.uid), {
-          uid: userCred.user.uid,
+        await updateProfile(user, { displayName: name });
+
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
           name: name,
-          email: email,
-          role: "user",
+          email: user.email,
           createdAt: serverTimestamp(),
+          role: "user",
+          university: "SVU",
+          stream: "B.Tech",
+          semester: "1",
+          section: "1"
         });
-
-        if (systemSettings.newUserAlerts) {
-          await setDoc(doc(collection(db, "system_notifications")), {
-            type: "new_user",
-            title: "New Student Registered",
-            message: `${name} (${email}) has joined StudentHub.`,
-            timestamp: serverTimestamp(),
-            readBy: []
-          });
-        }
       }
     } catch (err) {
       setError(formatFirebaseError(err.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address to receive password reset instructions.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage("Password reset email sent. Please check your inbox.");
+      setError("");
+    } catch (err) {
+      setError(formatFirebaseError(err.message));
     }
   };
 
@@ -143,48 +154,64 @@ const Auth = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          name: user.displayName || "Google User",
-          email: user.email,
-          photoBase64: null,
-          role: "user",
-          createdAt: serverTimestamp(),
-        });
-
-        if (systemSettings.newUserAlerts) {
-          await setDoc(doc(collection(db, "system_notifications")), {
-            type: "new_user",
-            title: "New Student (Google)",
-            message: `${user.displayName || user.email} has joined StudentHub.`,
-            timestamp: serverTimestamp(),
-            readBy: []
-          });
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        if (!systemSettings.allowPublicRegistration) {
+          await auth.signOut();
+          setError("New user registrations are currently disabled by administration.");
+          setLoading(false);
+          return;
         }
+
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          name: user.displayName || "Student",
+          email: user.email,
+          photoURL: user.photoURL || "",
+          createdAt: serverTimestamp(),
+          role: "user",
+          university: "SVU",
+          stream: "B.Tech",
+          semester: "1",
+          section: "1"
+        });
       }
     } catch (err) {
-      console.error("Google Auth Error:", err);
       setError(formatFirebaseError(err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Error: Please enter your email address first");
-      return;
-    }
+  const handleFacebookLogin = async () => {
     setLoading(true);
     setError("");
-    setSuccessMessage("");
     try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccessMessage("Success: Password reset link sent to your email!");
+      const result = await signInWithPopup(auth, facebookProvider);
+      const user = result.user;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        if (!systemSettings.allowPublicRegistration) {
+          await auth.signOut();
+          setError("New user registrations are currently disabled by administration.");
+          setLoading(false);
+          return;
+        }
+
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          name: user.displayName || "Student",
+          email: user.email || "",
+          photoURL: user.photoURL || "",
+          createdAt: serverTimestamp(),
+          role: "user",
+          university: "SVU",
+          stream: "B.Tech",
+          semester: "1",
+          section: "1"
+        });
+      }
     } catch (err) {
       setError(formatFirebaseError(err.message));
     } finally {
@@ -193,7 +220,7 @@ const Auth = () => {
   };
 
   const GoogleIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-4 h-4 mr-2">
+    <svg className="w-4 h-4" viewBox="0 0 24 24">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.27.81-.57z" />
@@ -201,121 +228,127 @@ const Auth = () => {
     </svg>
   );
 
+  const FacebookIcon = () => (
+    <svg className="w-4 h-4 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+
   return (
-    <div className="min-h-screen lg:h-screen w-full flex flex-col lg:flex-row-reverse bg-slate-50 dark:bg-[#0F172A] font-sans overflow-x-hidden lg:overflow-hidden text-slate-800 dark:text-slate-200 selection:bg-indigo-500/30 transition-colors duration-300">
+    <div className="h-screen w-full flex flex-col lg:flex-row-reverse bg-[#f8fafc] dark:bg-[#0b0f19] font-sans text-slate-800 dark:text-slate-200 overflow-y-auto lg:overflow-hidden transition-colors duration-300">
+      <div className="w-full lg:w-[430px] xl:w-[470px] min-h-screen lg:min-h-0 lg:h-full flex flex-col justify-between pt-3 px-5 pb-5 sm:p-6 lg:p-7 xl:p-8 bg-white dark:bg-[#111827] border-l border-slate-200 dark:border-slate-800 shadow-xs shrink-0 overflow-y-auto lg:overflow-y-auto custom-scrollbar">
+        <div className="w-full py-1">
+          <div className="w-full flex items-center justify-between gap-3 mb-3 sm:mb-4">
+            <a href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+              <img
+                src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
+                alt="StudentHub"
+                className="h-12 sm:h-14 md:h-16 w-auto max-w-[210px] sm:max-w-[240px] object-contain"
+              />
+            </a>
 
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20 dark:opacity-30">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200 via-transparent to-transparent dark:from-indigo-900/40" />
-      </div>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher variant="pill" align="right" />
+              <button
+                onClick={toggleTheme}
+                type="button"
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                title={isDarkMode ? "Light Mode" : "Dark Mode"}
+              >
+                {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-slate-700" />}
+              </button>
+            </div>
+          </div>
 
-      <div className="w-full max-w-full lg:w-[40%] xl:w-[35%] flex flex-col pt-6 pb-8 px-4 sm:px-10 lg:px-12 relative z-20 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-l border-slate-200 dark:border-white/5 overflow-y-auto overflow-x-hidden lg:overflow-y-auto min-h-screen lg:h-full custom-scrollbar transition-colors duration-200">
-
-        <button
-          onClick={toggleTheme}
-          type="button"
-          className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30 p-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-white/10 hover:scale-105 active:scale-95 transition-all shadow-sm"
-          title="Toggle Light/Dark Theme"
-        >
-          {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-indigo-600" />}
-        </button>
-
-        <div className="w-full max-sm:max-w-xs max-w-sm mx-auto flex flex-col items-center justify-center mb-4 shrink-0">
-          <a href="/" className="cursor-pointer hover:opacity-90 transition-opacity flex flex-col items-center">
-            <img
-              src="https://cdn.photos.sumanonline.com/R29vZ2xl/AVvXsEhos0R2tOWxdN_BLuLURzfQuWfV7OGviJ2NCbpQIHYYGBEP8t8zMWc9ZOUEyz8KI2Cr_QX_qzaAGadXOiNoIFsH5P3VJ7I758LvbcutztjuDNI3FBw8_f2z1gkdB7fDmodQfVEPGXwUWR2slBjKcU4nHxyPX3ewLik7gCI-vfp0O9PtloDj2nPy0crvo1JX/s600/new-logo-removebg.png"
-              alt="StudentHub Logo"
-              className="h-16 sm:h-20 max-w-[280px] w-auto object-contain transition-transform duration-300 hover:scale-105 mx-auto"
-            />
-          </a>
-        </div>
-
-        <div className="w-full max-sm:max-w-xs max-w-sm mx-auto animate-in fade-in slide-in-from-left-10 duration-1000">
-
-          <div className="mb-4 text-center">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">
-              {isLogin ? "Welcome back" : "Get started with StudentHub"}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs font-medium tracking-wide mx-auto text-center leading-normal">
-              {isLogin ? "Enter your credentials to continue your academic journey." : "Join the most advanced student community."}
+          <div className="mb-4">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              {isLogin ? "Sign In to StudentHub" : "Create Student Account"}
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {isLogin
+                ? "Enter your academic credentials to access your class schedule."
+                : "Register with your student profile to access timetable synchronization."}
             </p>
           </div>
 
-          {(!isLogin && !systemSettings.allowPublicRegistration) ? (
-            <div className="p-6 bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-300 dark:border-white/10 text-center backdrop-blur-md">
-              <ShieldAlert className="mx-auto mb-3 text-amber-500 animate-pulse" size={40} />
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Registration Closed</h3>
-              <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
-                We are not accepting new students at this time. Please contact your coordinator for access.
-              </p>
+          {!isLogin && !systemSettings.allowPublicRegistration ? (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-center space-y-2.5">
+              <AlertCircle className="mx-auto text-amber-600 dark:text-amber-400" size={24} />
+              <div>
+                <h2 className="text-xs font-bold text-slate-900 dark:text-white">Registration Closed</h2>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                  Self-registration is currently restricted. Please contact your department coordinator.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsLogin(true)}
-                className="mt-6 w-full py-3 bg-slate-800 dark:bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all border border-white/5"
+                className="w-full py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all"
               >
-                Go to Login
+                Return to Sign In
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {!isLogin && (
-                <div className="space-y-1 group">
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500 ml-1">Full Name</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input
                       type="text"
-                      placeholder="e.g. SumanOnline"
+                      placeholder="e.g. Suman Chakraborty"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 focus:border-indigo-500/50 rounded-xl focus:bg-indigo-500/5 transition-all outline-none font-bold text-slate-900 dark:text-white text-[13px] placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                       required
                     />
                   </div>
                 </div>
               )}
 
-              <div className="space-y-1 group">
-                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500 ml-1">Email Address</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
                     type="email"
-                    placeholder="email@example.com"
+                    placeholder="student_name@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 focus:border-indigo-500/50 rounded-xl focus:bg-indigo-500/5 transition-all outline-none font-bold text-slate-900 dark:text-white text-[13px] placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                    className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-1 group">
-                <div className="flex justify-between items-center ml-1">
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">Password</label>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Password</label>
                   {isLogin && (
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
+                      className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                     >
-                      Forgot Password?
+                      Forgot password?
                     </button>
                   )}
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-11 pr-11 py-3 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 focus:border-indigo-500/50 rounded-xl focus:bg-indigo-500/5 transition-all outline-none font-bold text-slate-900 dark:text-white text-[13px] placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                    className="w-full pl-10 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-indigo-500 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   >
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -323,212 +356,230 @@ const Auth = () => {
               </div>
 
               {error && (
-                <div key={error} className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2 animate-shake">
-                  <ShieldAlert className="text-rose-500 shrink-0" size={14} />
-                  <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold leading-tight">{error}</p>
+                <div className="p-2.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl flex items-center gap-2 text-xs font-medium text-rose-700 dark:text-rose-400">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
               {successMessage && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2 animate-in fade-in zoom-in-95">
-                  <CheckCircle2 className="text-emerald-500 shrink-0" size={14} />
-                  <p className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold leading-tight">{successMessage}</p>
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 size={14} className="shrink-0" />
+                  <span>{successMessage}</span>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl font-black text-sm shadow-lg shadow-indigo-500/25 active:scale-[0.98] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 group relative overflow-hidden"
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {loading ? <Loader inline size="sm" /> : (
+                {loading ? (
+                  <Loader inline size="sm" />
+                ) : (
                   <>
-                    <span className="relative z-10">{isLogin ? "Sign In" : "Register Now"}</span>
-                    <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                    <span>{isLogin ? "Sign In" : "Create Account"}</span>
+                    <ArrowRight size={14} />
                   </>
                 )}
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shine" />
               </button>
 
-              <div className="flex items-center gap-4 my-2.5 py-0.5">
-                <div className="h-px flex-1 bg-slate-200 dark:bg-white/5" />
-                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">OR</span>
-                <div className="h-px flex-1 bg-slate-200 dark:bg-white/5" />
+              <div className="relative my-2.5 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+                </div>
+                <span className="relative bg-white dark:bg-[#111827] px-3 text-[10px] font-medium text-slate-400 uppercase">
+                  or
+                </span>
               </div>
 
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-800 dark:text-white rounded-xl font-bold text-[13px] border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-              >
-                <GoogleIcon />
-                <span>{isLogin ? "Continue with Google" : "Join with Google"}</span>
-              </button>
-
-              <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/5 text-center">
-                <p className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1.5">
-                  {isLogin ? "New to StudentHub?" : "Already part of StudentHub?"}
-                </p>
+              <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => { setIsLogin(!isLogin); setError(""); }}
-                  className="w-full py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-white/5 active:scale-95 shadow-sm"
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="w-full py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer disabled:opacity-50"
                 >
-                  {isLogin ? "Create an account" : "Back to login"}
+                  <GoogleIcon />
+                  <span>Continue with Google</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleFacebookLogin}
+                  disabled={loading}
+                  className="w-full py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                >
+                  <FacebookIcon />
+                  <span>Continue with Facebook</span>
+                </button>
+              </div>
+
+              <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setError("");
+                    }}
+                    className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer ml-1"
+                  >
+                    {isLogin ? "Sign up" : "Sign in"}
+                  </button>
+                </p>
               </div>
             </form>
           )}
-
         </div>
 
-        {/* Mobile-Friendly Purpose Card (< lg screens) */}
-        <div className="lg:hidden w-full max-sm:max-w-xs max-w-sm mx-auto mt-6 mb-2 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl text-center shadow-sm">
-          <div className="flex items-center justify-center gap-1.5 mb-1.5">
-            <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">About StudentHub App</span>
+        <div className="pt-2 shrink-0">
+          <Footer />
+        </div>
+      </div>
+
+      <div className="hidden lg:flex flex-1 h-full flex-col justify-between p-8 xl:p-12 bg-gradient-to-br from-indigo-50/60 via-slate-50 to-blue-50/50 dark:from-[#080d1a] dark:via-[#0c1222] dark:to-[#070b14] border-l border-slate-200/80 dark:border-slate-800/80 relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="max-w-xl space-y-2.5 shrink-0 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 rounded-full text-indigo-700 dark:text-indigo-300 text-xs font-bold shadow-xs">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Institutional Academic Operating System</span>
           </div>
-          <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
-            StudentHub is an all-in-one academic management app that helps university students organize class schedules, track course attendance, manage exam routines, access study resources, and receive AI academic assistance.
+
+          <h2 className="text-2xl xl:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug">
+            Your University Timetable, <br />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
+              Synchronized &amp; Real-Time.
+            </span>
+          </h2>
+
+          <p className="text-xs xl:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+            Centralized digital platform for university students and departments to track live lecture timelines, attendance compliance, and examination dates.
           </p>
         </div>
 
-        <Footer />
+        <div className="max-w-xl w-full my-auto space-y-4 relative z-10">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-lg shadow-indigo-500/5 dark:shadow-none space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                  <Calendar size={15} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">Computer Science &amp; Engineering</h3>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Semester 4 • Section A</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 px-2.5 py-0.5 rounded-full">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live Schedule
+              </span>
+            </div>
 
-      </div>
+            <div className="space-y-2.5">
+              <div className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-800/70 border border-indigo-100 dark:border-indigo-900/40 relative overflow-hidden">
+                <div className="flex items-center justify-between gap-3 mb-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-100/70 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
+                      10:30 AM - 12:30 PM
+                    </span>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">Operating Systems Laboratory (CS401P)</h4>
+                  </div>
+                  <span className="text-[10.5px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                    <MapPin size={11} /> Lab 402
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>Prof. A. Sharma • Faculty of Computing</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">In Progress (45m left)</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full w-[65%]"></div>
+                </div>
+              </div>
 
-      <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-indigo-50/50 via-slate-50 to-purple-50/50 dark:from-slate-950 dark:via-[#0F172A] dark:to-indigo-950/80 flex-col items-center justify-between p-4 xl:p-6 overflow-hidden border-r border-slate-200 dark:border-white/10 h-full transition-colors duration-200">
+              <div className="p-3 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/60">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                      02:00 PM - 03:00 PM
+                    </span>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">Database Management Systems</h4>
+                  </div>
+                  <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                    <MapPin size={11} /> Lecture Hall 3
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>Dr. S. Mukherjee • Department of CSE</span>
+                  <span className="text-slate-400 font-semibold">Upcoming Lecture</span>
+                </div>
+              </div>
+            </div>
 
-        <div className="absolute inset-0 opacity-20 dark:opacity-30 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-5%] left-[5%] w-[400px] h-[400px] bg-indigo-400/20 dark:bg-indigo-600/20 rounded-full filter blur-[80px] transform-gpu" />
-          <div className="absolute bottom-[-5%] right-[5%] w-[350px] h-[350px] bg-purple-400/20 dark:bg-purple-600/20 rounded-full filter blur-[70px] transform-gpu" />
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-2.5 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Attendance Ratio</span>
+                  <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">88.5%</span>
+                </div>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                  Above 75% exam criteria
+                </p>
+              </div>
+
+              <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-2.5 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Next Mid-Term</span>
+                  <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">March 16</span>
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                  DBMS &amp; OS Practicals
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 shadow-xs transition-all hover:border-indigo-400">
+              <div className="text-indigo-600 dark:text-indigo-400 mb-1.5">
+                <BookOpen size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Routine Sync</h4>
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Instant schedule synchronization</p>
+            </div>
+
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 shadow-xs transition-all hover:border-indigo-400">
+              <div className="text-indigo-600 dark:text-indigo-400 mb-1.5">
+                <Calendar size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Academic Calendar</h4>
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">University holidays &amp; events</p>
+            </div>
+
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 shadow-xs transition-all hover:border-indigo-400">
+              <div className="text-indigo-600 dark:text-indigo-400 mb-1.5">
+                <ShieldCheck size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Verified Records</h4>
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Department-approved rosters</p>
+            </div>
+          </div>
         </div>
 
-        <div className="relative z-10 w-full max-w-2xl my-auto flex flex-col justify-between h-full py-1 animate-in fade-in slide-in-from-right-12 duration-1000">
-
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-indigo-500/10 dark:bg-indigo-500/10 backdrop-blur-md rounded-full border border-indigo-300 dark:border-indigo-500/30 mb-1.5 shadow-sm dark:shadow-[0_0_15px_rgba(99,102,241,0.2)] w-max">
-              <Sparkles size={12} className="text-indigo-600 dark:text-indigo-400 animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-200">Premium Academic Ecosystem</span>
-            </div>
-
-            <h2 className="text-[24px] xl:text-[30px] font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter mb-1">
-              Elevate your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 dark:from-indigo-400 dark:via-purple-300 dark:to-pink-400">Learning Path.</span>
-            </h2>
-
-            <p className="text-slate-600 dark:text-slate-300 text-[11px] xl:text-[12px] font-medium max-w-lg mb-2 leading-tight">
-              Organize your classes, sync with global university schedules, and unlock AI-powered insights for every course you take.
-            </p>
-
-            {/* Application Purpose Banner for Google OAuth & Users */}
-            <div className="w-full bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-cyan-50/80 dark:from-indigo-950/60 dark:via-purple-950/40 dark:to-slate-900/60 border border-indigo-200/90 dark:border-indigo-800/60 backdrop-blur-xl p-2.5 sm:p-3 rounded-xl shadow-sm mb-2.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <Sparkles size={12} className="animate-pulse" />
-                </div>
-                <h3 className="text-[10.5px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">About StudentHub App</h3>
-              </div>
-              <p className="text-[11px] xl:text-[12px] text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
-                StudentHub is an all-in-one academic management app that helps university students organize class schedules, track course attendance, manage exam routines, access study resources, and receive AI academic assistance.
-              </p>
-            </div>
+        <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 pt-3 border-t border-slate-200/80 dark:border-slate-800 shrink-0 relative z-10">
+          <span className="font-semibold tracking-wider text-[11px]">© 2023 - 2026 STUDENTHUB | ALL RIGHTS RESERVED</span>
+          <div className="flex items-center gap-4 font-semibold text-[11px]">
+            <Link to="/privacy-policy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy Policy</Link>
+            <Link to="/terms-of-service" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms of Service</Link>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-2.5 w-full">
-            {[
-              { icon: Layout, title: "Smart Dashboard", desc: "Automated routine sync.", gradient: "from-indigo-500 to-blue-600" },
-              { icon: BookOpen, title: "Resource Hub", desc: "Global academic sync.", gradient: "from-purple-500 to-pink-600" },
-              { icon: Zap, title: "AI Assistant", desc: "Instant academic guidance.", gradient: "from-cyan-500 to-blue-600" },
-              { icon: Bell, title: "Live Alerts", desc: "Schedule & holiday pings.", gradient: "from-amber-500 to-orange-600" },
-            ].map((feat, i) => (
-              <div
-                key={i}
-                className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 hover:border-indigo-500/40 hover:bg-white dark:hover:bg-slate-900/90 shadow-md dark:shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 group hover:-translate-y-0.5 flex items-center gap-3"
-              >
-                <div className={`w-8 h-8 bg-gradient-to-tr ${feat.gradient} rounded-lg flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
-                  <feat.icon className="text-white" size={15} />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="text-slate-900 dark:text-white text-[12px] xl:text-[13px] font-bold leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors truncate">{feat.title}</h4>
-                  <p className="text-slate-500 dark:text-slate-400 text-[9.5px] xl:text-[10px] font-medium leading-tight truncate">{feat.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-            <div className="space-y-1.5">
-              <h3 className="text-[12px] xl:text-[13px] font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
-                <Award className="text-amber-500 dark:text-amber-400" size={15} />
-                Why join StudentHub?
-              </h3>
-              <div className="flex flex-col gap-1">
-                {[
-                  "Personalized routines & holiday trackers.",
-                  "Cloud sync across all your devices.",
-                  "Exclusive AI Academic Assistant.",
-                  "Seamless university integrations."
-                ].map((text, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-white/70 dark:bg-white/[0.04] hover:bg-white dark:hover:bg-white/[0.08] backdrop-blur-md py-1 px-2.5 rounded-lg border border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500/30 transition-all group shadow-sm">
-                    <div className="w-4 h-4 rounded-md bg-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-[0_0_8px_rgba(99,102,241,0.3)]">
-                      <CheckCircle2 size={10} />
-                    </div>
-                    <span className="text-slate-800 dark:text-slate-200 text-[10px] xl:text-[11px] font-semibold leading-tight truncate">{text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-[12px] xl:text-[13px] font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
-                <ShieldAlert className="text-emerald-600 dark:text-emerald-400" size={15} />
-                Legal Hub
-              </h3>
-              <div className="flex flex-col gap-1.5">
-                <Link to="/terms-of-service" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2 px-3 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-sm">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0 border border-emerald-500/30">
-                      <FileText size={14} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-slate-900 dark:text-white text-[11.5px] xl:text-[12px] font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">Terms of Service</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-[9px] font-medium">Rules & guidelines</span>
-                    </div>
-                  </div>
-                  <ArrowRight size={13} className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-                </Link>
-
-                <Link to="/privacy-policy" className="group flex items-center justify-between bg-gradient-to-r from-white to-indigo-50/80 dark:from-slate-900/90 dark:to-indigo-950/80 hover:from-white hover:to-indigo-100 dark:hover:from-slate-900 dark:hover:to-indigo-900 backdrop-blur-md p-2 px-3 rounded-xl border border-slate-200/80 dark:border-indigo-500/20 hover:border-indigo-400/50 transition-all hover:scale-[1.01] shadow-sm">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shrink-0 border border-purple-500/30">
-                      <Shield size={14} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-slate-900 dark:text-white text-[11.5px] xl:text-[12px] font-bold group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">Privacy Policy</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-[9px] font-medium">Data protection</span>
-                    </div>
-                  </div>
-                  <ArrowRight size={13} className="text-slate-400 dark:text-slate-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-2.5 flex items-center gap-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-400/40 dark:border-emerald-500/30 w-max shadow-sm">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-[8.5px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">System Online</span>
-          </div>
-
         </div>
-
-        <div className="absolute top-10 right-10 w-24 h-24 border border-slate-300/40 dark:border-white/10 rounded-full animate-pulse pointer-events-none" />
-        <div className="absolute bottom-20 left-6 w-48 h-48 border border-slate-300/40 dark:border-white/10 rounded-full animate-float pointer-events-none" />
       </div>
-
     </div>
   );
 };

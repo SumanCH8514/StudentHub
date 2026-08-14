@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import { getMessaging, isSupported } from "firebase/messaging";
 
@@ -24,6 +24,7 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const analytics = getAnalytics(app);
 export const googleProvider = new GoogleAuthProvider();
+export const facebookProvider = new FacebookAuthProvider();
 
 
 export let messaging = null;

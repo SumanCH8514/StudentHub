@@ -79,6 +79,10 @@ import CollegeForms from "./CollegeForms";
 import StudentDashboard from "./StudentDashboard";
 import Uploader from "./Uploader";
 import Loader from "./Loader";
+import ExamSchedule from "./routine/ExamSchedule";
+import ResultsViewer from "./routine/ResultsViewer";
+import CommunityChannels from "./routine/CommunityChannels";
+import HolidayList from "./routine/HolidayList";
 import { useAcademicConfig } from "../utils/academicConfig";
 import { useTheme, toggleGlobalTheme, applyTheme } from "../utils/theme";
 
@@ -1877,111 +1881,7 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
 
             {/* ── Community Chat ── */}
             {activeNav === "chat" && (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader
-                    icon={MessagesSquare}
-                    iconBg="bg-blue-50 dark:bg-blue-900/30"
-                    iconColor="text-blue-600 dark:text-blue-400"
-                    title="Student Community & Channels"
-                    subtitle="Official batch groups, announcements, and peer support"
-                  />
-                  <div className="p-5 sm:p-7 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* WhatsApp Batch Group */}
-                      <div className="bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-                        <div>
-                          <div className="flex items-center justify-between gap-3 mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center shadow-md shadow-[#25D366]/20 shrink-0">
-                                <Smartphone size={22} />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Official WhatsApp Group</h4>
-                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Stream &amp; Section Group</p>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                            Join your class WhatsApp group for real-time timetable updates, class cancellations, and collaborative study notes.
-                          </p>
-                        </div>
-                        <div className="pt-4 mt-2 border-t border-emerald-100/80 dark:border-emerald-900/30 flex items-center justify-between">
-                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Class Representatives Active</span>
-                          <button
-                            type="button"
-                            onClick={() => window.open("https://whatsapp.com/channel/0029VbAQjkP9WtC2Fa6Ggg2H", "_blank")}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-xs"
-                          >
-                            <span>Join Group</span>
-                            <ExternalLink size={13} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Telegram Broadcast Channel */}
-                      <div className="bg-sky-50/40 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 rounded-2xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-                        <div>
-                          <div className="flex items-center justify-between gap-3 mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-11 h-11 bg-[#0088cc] text-white rounded-xl flex items-center justify-center shadow-md shadow-[#0088cc]/20 shrink-0">
-                                <Send size={22} />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Telegram Alerts Channel</h4>
-                                <p className="text-[11px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">University Broadcasts</p>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                            Official broadcast channel for exam date sheets, college holiday circulars, and university result release alerts.
-                          </p>
-                        </div>
-                        <div className="pt-4 mt-2 border-t border-sky-100/80 dark:border-sky-900/30 flex items-center justify-between">
-                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Instant Push Notifications</span>
-                          <button
-                            type="button"
-                            onClick={() => window.open("https://t.me/SumanOnline_Com", "_blank")}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-xs font-bold transition-all active:scale-95 shadow-xs"
-                          >
-                            <span>Subscribe</span>
-                            <ExternalLink size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Support & Assistance Card */}
-                    <div className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
-                          <MessageCircle size={22} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">Need Help with Schedules or Profile?</h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Submit a query or contact administrative technical support.
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onNavigateView) {
-                            onNavigateView("support");
-                          } else if (onBack) {
-                            window.history.pushState(null, "", "/routine/support");
-                            onBack();
-                          }
-                        }}
-                        className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95 shrink-0 cursor-pointer"
-                      >
-                        Help &amp; Support
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-              </div>
+              <CommunityChannels onNavigateView={onNavigateView} onBack={onBack} />
             )}
 
             {/* ── App Preferences ── */}
@@ -2044,110 +1944,27 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
 
             {/* ── Check Results ── */}
             {(activeNav === "results" || activeNav === "all") && (
-              <Card>
-                <CardHeader
-                  icon={ClipboardList}
-                  iconBg="bg-emerald-50 dark:bg-emerald-900/30"
-                  iconColor="text-emerald-500"
-                  title="Check Results"
-                  subtitle="Search and view semester gradebook & official marksheets"
-                />
-
-                <div className="p-5 sm:p-7 space-y-6">
-                  {/* Results Search Form Card */}
-                  <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                          Result Search Criteria
-                        </h4>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const resultSemOpts = availableResultSemesters.map((sem) => ({
-                        value: sem,
-                        label: `Semester ${sem}`,
-                      }));
-                      const resultYearOpts = availableExamYears.map((yr) => ({
-                        value: yr,
-                        label: yr === resultSearchYear ? `${yr} (Auto Calc)` : `Year ${yr}`,
-                      }));
-
-                      return (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          {/* Roll Number Input */}
-                          <Field label="Roll Number" icon={Hash}>
-                            <input
-                              type="text"
-                              value={resultSearchRoll}
-                              onChange={(e) => setResultSearchRoll(e.target.value)}
-                              placeholder="e.g. 006-BCA-2023-406"
-                              className={inputCls(true)}
-                            />
-                          </Field>
-
-                          {/* Semester CustomSelect */}
-                          <Field label="Semester" icon={Layers}>
-                            <CustomSelect
-                              name="resultSemester"
-                              value={resultSearchSem}
-                              onChange={(e) => setResultSearchSem(e.target.value)}
-                              icon={Layers}
-                              options={resultSemOpts}
-                            />
-                          </Field>
-
-                          {/* Examination Year CustomSelect */}
-                          <Field label="Examination Year" icon={CalendarDays}>
-                            <CustomSelect
-                              name="resultExamYear"
-                              value={resultSearchYear}
-                              onChange={(e) => setResultSearchYear(e.target.value)}
-                              icon={CalendarDays}
-                              options={resultYearOpts}
-                            />
-                          </Field>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="text-[12px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                        <span>Ready to query official grade records for {formData.stream || "course"}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsIframeLoading(true);
-                          setIsResultModalOpen(true);
-                        }}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
-                      >
-                        <Search size={16} className="shrink-0" />
-                        <span>Show Result</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Official Verification Notice */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-900/40">
-                      <GraduationCap size={18} />
-                    </div>
-                    <div className="text-xs space-y-1">
-                      <p className="font-bold text-slate-800 dark:text-slate-200">
-                        Official University Transcript Portal
-                      </p>
-                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                        Transcripts and grade sheets are fetched directly from the university examination database. Results include subject-wise credit scores, SGPA / CGPA rankings, and printable marksheet copies.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
+              <ResultsViewer
+                resultSearchRoll={resultSearchRoll}
+                setResultSearchRoll={setResultSearchRoll}
+                resultSearchSem={resultSearchSem}
+                setResultSearchSem={setResultSearchSem}
+                resultSearchYear={resultSearchYear}
+                setResultSearchYear={setResultSearchYear}
+                semesterOptions={availableResultSemesters.map((sem) => ({
+                  value: sem,
+                  label: `Semester ${sem}`,
+                }))}
+                yearOptions={availableExamYears.map((yr) => ({
+                  value: yr,
+                  label: yr === resultSearchYear ? `${yr} (Auto Calc)` : `Year ${yr}`,
+                }))}
+                handleShowResult={() => {
+                  setIsIframeLoading(true);
+                  setIsResultModalOpen(true);
+                }}
+                formData={formData}
+              />
             )}
 
             {/* ── College Forms View ── */}
@@ -2162,50 +1979,32 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
               <Card>
                 <CardHeader
                   icon={Upload}
-                  iconBg="bg-indigo-50 dark:bg-indigo-900/30"
-                  iconColor="text-indigo-600 dark:text-indigo-400"
-                  title="Upload Routine"
-                  subtitle="AI-powered class timetable scanner & community sync"
+                  iconBg="bg-blue-50 dark:bg-blue-900/30"
+                  iconColor="text-blue-500"
+                  title="Upload Timetable"
+                  subtitle="Scan and update semester timetable directly from image or document"
                 />
-
-                <div className="p-5 sm:p-7 space-y-6">
-                  {/* Current Target Academic Badge */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 dark:bg-slate-800/60 border border-indigo-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                          Target Academic Schedule
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/60 shadow-xs">
-                          {formData.university || "University"}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
-                          {formData.stream || "Course"}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
-                          Semester {formData.semester || "1"}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs">
-                          Section {formData.section || "1"}
-                        </span>
-                      </div>
+                <div className="p-5 sm:p-7">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 mb-6">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span>Targeting: <strong className="text-slate-800 dark:text-slate-100">{formData.university || "University"} • {formData.stream || "Course"} • Sem {formData.semester || "1"} (Sec {formData.section || "1"})</strong></span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveNav("academic")}
-                      className="self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-600 text-indigo-600 dark:text-indigo-300 text-xs font-bold border border-slate-200 dark:border-slate-600 transition-colors shrink-0"
-                    >
-                      Change Details
-                    </button>
+                    <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-900/40">
+                      Auto-sync Enabled
+                    </span>
                   </div>
 
-                  {/* Interactive Embedded Uploader Component */}
-                  <div>
+                  <div className="max-w-2xl mx-auto">
                     <Uploader
                       hideHeader={true}
+                      prefillData={{
+                        university: formData.university,
+                        customUniversity: formData.customUniversity,
+                        stream: formData.stream,
+                        semester: formData.semester,
+                        section: formData.section,
+                      }}
                       onUploadSuccess={() => {
                         setSaveStatus("success");
                         setMessage("Routine scanned and synced successfully!");
@@ -2219,276 +2018,24 @@ const Settings = ({ onBack, onSync, onTabChange, onNavigateView, initialTab = "d
 
             {/* ── Exam Time Routine ── */}
             {(activeNav === "exam" || activeNav === "all") && (
-              <Card>
-                <CardHeader
-                  icon={CalendarDays}
-                  iconBg="bg-amber-50 dark:bg-amber-900/30"
-                  iconColor="text-amber-600 dark:text-amber-400"
-                  title="Examination Schedule"
-                  subtitle="Official semester theory & practical examination dates"
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setFetching(true); setTimeout(() => setFetching(false), 100); }}
-                    className="p-2 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors rounded-lg"
-                    title="Refresh Timetable"
-                  >
-                    <RefreshCw size={16} className={cn(loadingExams && "animate-spin")} />
-                  </button>
-                </CardHeader>
-                <div className="p-5 sm:p-7 space-y-5">
-                  {/* Academic Context Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                      <span>{formData.university || "University"} • {formData.stream || "Course"}</span>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold">
-                      Semester {formData.semester || "1"}
-                    </span>
-                  </div>
-
-                  {loadingExams ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <Loader inline size="md" message="Loading examination schedule..." />
-                    </div>
-                  ) : processedExams.length > 0 ? (
-                    <div className="grid gap-3.5">
-                      {processedExams.map((exam) => {
-                        const isToday = exam.status === 'today';
-                        const isPassed = exam.status === 'passed';
-
-                        let parsedDate = null;
-                        try {
-                          if (exam.date) parsedDate = new Date(exam.date);
-                        } catch (e) {}
-
-                        const monthStr = parsedDate && !isNaN(parsedDate) ? parsedDate.toLocaleDateString('en-US', { month: 'short' }) : 'EXAM';
-                        const dayNum = parsedDate && !isNaN(parsedDate) ? parsedDate.getDate() : (exam.dayNumber || '•');
-                        const weekdayStr = parsedDate && !isNaN(parsedDate) ? parsedDate.toLocaleDateString('en-US', { weekday: 'short' }) : (exam.day || 'Day');
-
-                        return (
-                          <div
-                            key={exam.id}
-                            className={cn(
-                              "relative bg-white dark:bg-slate-800/80 border rounded-2xl p-4 sm:p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4",
-                              isToday
-                                ? "border-amber-400/80 dark:border-amber-500/60 ring-2 ring-amber-400/20 bg-amber-50/20 dark:bg-amber-950/10 shadow-sm"
-                                : isPassed
-                                  ? "border-slate-200/70 dark:border-slate-800 opacity-60"
-                                  : "border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-xs"
-                            )}
-                          >
-                            <div className="flex items-center gap-4 min-w-0">
-                              {/* Date Calendar Box */}
-                              <div className={cn(
-                                "w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border text-center select-none",
-                                isToday
-                                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
-                                  : isPassed
-                                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500"
-                                    : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
-                              )}>
-                                <span className="text-[10px] font-bold uppercase tracking-wider leading-none">
-                                  {monthStr}
-                                </span>
-                                <span className="text-lg font-black leading-tight mt-0.5">
-                                  {dayNum}
-                                </span>
-                                <span className="text-[9px] font-semibold uppercase opacity-80 leading-none">
-                                  {weekdayStr}
-                                </span>
-                              </div>
-
-                              {/* Exam Details */}
-                              <div className="min-w-0 space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                                    isToday
-                                      ? "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
-                                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700"
-                                  )}>
-                                    {exam.examType || 'Theory'}
-                                  </span>
-                                  {isToday && (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white uppercase tracking-wider animate-pulse">
-                                      Today's Exam
-                                    </span>
-                                  )}
-                                  {isPassed && (
-                                    <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
-                                      <CheckCircle2 size={12} /> Completed
-                                    </span>
-                                  )}
-                                </div>
-                                <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base truncate">
-                                  {exam.subject}
-                                </h4>
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                  <span className="flex items-center gap-1.5">
-                                    <CalendarDays size={13} className="text-slate-400" />
-                                    {exam.date}
-                                  </span>
-                                  {exam.time && (
-                                    <span className="flex items-center gap-1.5">
-                                      <Activity size={13} className="text-slate-400" />
-                                      {exam.time}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Status Chip */}
-                            <div className="flex items-center self-end sm:self-center shrink-0">
-                              {isToday ? (
-                                <span className="px-3 py-1 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 text-xs font-bold">
-                                  Exam In Progress
-                                </span>
-                              ) : isPassed ? (
-                                <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-medium">
-                                  Concluded
-                                </span>
-                              ) : (
-                                <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-xs font-semibold">
-                                  Scheduled
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="p-8 sm:p-10 text-center bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                      <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center mx-auto mb-3">
-                        <CalendarDays size={24} />
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">No Examination Schedule Published</h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                        The examination authority has not published the timetable for Semester {formData.semester || "1"} yet.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
+              <ExamSchedule
+                formData={formData}
+                processedExams={processedExams}
+                loadingExams={loadingExams}
+                setFetching={setFetching}
+              />
             )}
 
             {/* ── Holiday List ── */}
             {(activeNav === "holidays" || activeNav === "all") && (
-              <Card>
-                <CardHeader
-                  icon={CalendarDays}
-                  iconBg="bg-rose-50 dark:bg-rose-900/30"
-                  iconColor="text-rose-500"
-                  title="Holiday List 2024-25"
-                  subtitle="Official university holiday calendar"
-                />
-                <div className="p-6">
-                  {loadingHolidays ? (
-                    <div className="flex flex-col items-center justify-center py-10">
-                      <Loader inline size="md" message="Syncing calendar..." />
-                    </div>
-                  ) : holidays.length > 0 ? (
-                    (() => {
-                      const todayStart = new Date();
-                      todayStart.setHours(0, 0, 0, 0);
-                      const upcomingHolidays = holidays.filter(h => new Date(h.date).setHours(0, 0, 0, 0) >= todayStart.getTime());
-                      const passedHolidays = holidays.filter(h => new Date(h.date).setHours(0, 0, 0, 0) < todayStart.getTime());
-                      const renderHoliday = (h, isPast) => {
-                        const dateObj = new Date(h.date);
-                        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                        const monthName = dateObj.toLocaleDateString('en-US', { month: 'short' });
-                        const dateNum = dateObj.getDate();
-                        const isToday = dateObj.setHours(0, 0, 0, 0) === todayStart.getTime();
-                        return (
-                          <div key={h.id} className={cn(
-                            "flex items-center gap-4 p-4 rounded-2xl border transition-all relative overflow-hidden group",
-                            isPast
-                              ? "bg-slate-50 dark:bg-slate-800/20 border-slate-100 dark:border-slate-800/50 opacity-70 cursor-default"
-                              : isToday
-                                ? "bg-gradient-to-r from-rose-50/80 to-orange-50/80 dark:from-rose-900/10 dark:to-orange-900/10 border-rose-200/60 dark:border-rose-800/50 shadow-sm hover:shadow-md transition-all"
-                                : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-sm hover:shadow-md transition-all"
-                          )}>
-                            {isToday && (
-                              <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none overflow-hidden z-0">
-                                <div className="absolute top-[10px] right-[-30px] w-[100px] bg-gradient-to-r from-rose-500 to-orange-500 text-white text-[9px] font-bold py-1 text-center rotate-45 shadow-sm shadow-rose-500/30 tracking-widest uppercase">
-                                  TODAY
-                                </div>
-                              </div>
-                            )}
-                            <div className={cn(
-                              "w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border relative z-10 transition-transform group-hover:scale-105",
-                              isPast
-                                ? "bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500"
-                                : isToday
-                                  ? "bg-gradient-to-br from-rose-500 to-orange-500 border-none text-white shadow-inner shadow-white/20"
-                                  : "bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30 text-rose-600 dark:text-rose-400"
-                            )}>
-                              <span className={cn("text-[10px] font-bold uppercase tracking-widest", isToday ? "opacity-90" : "")}>{monthName}</span>
-                              <span className="text-lg font-black leading-none mt-0.5">{dateNum}</span>
-                            </div>
-                            <div className="min-w-0 flex-1 relative z-10 pr-6">
-                              <h4 className={cn(
-                                "font-bold text-[15px] line-clamp-2 break-words leading-tight mb-1",
-                                isPast ? "text-slate-500 dark:text-slate-400" : isToday ? "text-rose-900 dark:text-rose-100" : "text-slate-800 dark:text-slate-200"
-                              )}>{h.occasion}</h4>
-                              <p className={cn(
-                                "text-[12px] font-medium",
-                                isPast ? "text-slate-400 dark:text-slate-500" : isToday ? "text-rose-600/80 dark:text-rose-300/80" : "text-slate-500 dark:text-slate-400"
-                              )}>{dayName}, {dateObj.getFullYear()}</p>
-                            </div>
-                          </div>
-                        );
-                      };
-                      return (
-                        <div className="space-y-6">
-                          {upcomingHolidays.length > 0 ? (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2 px-1 mb-2">
-                                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Upcoming Holidays</h3>
-                              </div>
-                              {upcomingHolidays.map(h => renderHoliday(h, false))}
-                            </div>
-                          ) : (
-                            <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No upcoming holidays scheduled.</p>
-                            </div>
-                          )}
-                          {passedHolidays.length > 0 && (
-                            <div className="pt-2">
-                              <button
-                                type="button"
-                                onClick={() => setShowPassedHolidays(!showPassedHolidays)}
-                                className="flex items-center gap-3 w-full py-2 px-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors group"
-                              >
-                                <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">Passed ({passedHolidays.length})</span>
-                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50 group-hover:bg-slate-300 dark:group-hover:bg-slate-600 transition-colors" />
-                                {showPassedHolidays ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              </button>
-                              {showPassedHolidays && (
-                                <div className="space-y-3 mt-4 animate-in slide-in-from-top-2 duration-300 opacity-80">
-                                  {passedHolidays.map(h => renderHoliday(h, true))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                      <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <CalendarDays size={32} className="text-rose-500" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">No Holidays Announced</h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm mx-auto">The administration hasn't uploaded the holiday list yet.</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
+              <HolidayList
+                holidays={holidays}
+                loadingHolidays={loadingHolidays}
+                onRefresh={() => {
+                  setFetching(true);
+                  setTimeout(() => setFetching(false), 100);
+                }}
+              />
             )}
 
             {/* ── Study Materials View ── */}

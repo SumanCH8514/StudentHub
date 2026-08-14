@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-// Silence 3rd-party extension & browser warning noise in dev console
 if (typeof window !== 'undefined') {
   const filterNoise = (msg) => {
     if (!msg) return false;
@@ -46,6 +45,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
+import { LanguageProvider } from './utils/language.jsx'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter
@@ -54,7 +55,9 @@ createRoot(document.getElementById('root')).render(
         v7_relativeSplatPath: true
       }}
     >
-      <App />
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>
 )
